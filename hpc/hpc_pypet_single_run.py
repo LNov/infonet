@@ -1,18 +1,14 @@
 import sys
 import os
-from datetime import datetime
 import time
 import numpy as np
 import pandas as pd
-from pypet import Environment
-from pypet import pypetconstants
-from pypet.utils.explore import cartesian_product
+from pypet import Trajectory
 import networkx as nx
 from idtxl.multivariate_te import MultivariateTE
-from idtxl.data import Data
-from scoop import futures
 import copyreg
-import itertools
+from subprocess import call
+import argparse
 
 
 def pickle_mTE(obj):
@@ -23,6 +19,39 @@ def pickle_mTE(obj):
 # Make MultivariateTE pickable, reference:
 # https://docs.python.org/3/library/copyreg.html
 copyreg.pickle(MultivariateTE, pickle_mTE)
+
+
+# Define custom error classes
+class Error(Exception):
+    """Base class for exceptions in this module."""
+    pass
+
+
+class ParameterMissing(Error):
+    """Exception raised for missing parameters.
+
+    Attributes:
+        par_names -- any sequence containing the names of the missing parameters
+        msg  -- explanation of the error
+    """
+
+    def __init__(self, par_names, msg='ERROR: one or more parameters missing:'):
+        self.par_names = par_names
+        self.msg = msg
+
+
+class ParameterValue(Error):
+    """Raised when the provided parameter value is not valid.
+
+    Attributes:
+        par_value -- provided value
+        msg  -- explanation of the error
+    """
+
+    def __init__(self, par_value, msg='ERROR: Invalid parameter values:'):
+        self.par_value = par_value
+        self.msg = msg
+
 
 # Define parameter options dictionaries
 network_inference_algorithms = pd.DataFrame()
@@ -114,38 +143,6 @@ node_dynamics_models['Required parameters'] = pd.Series({
     'logistic_map': ('samples_n', 'samples_transient_n', 'noise_amplitude'),
     'boolean_XOR': ('samples_n', 'samples_transient_n')
 })
-
-
-# Define custom error classes
-class Error(Exception):
-    """Base class for exceptions in this module."""
-    pass
-
-
-class ParameterMissing(Error):
-    """Exception raised for missing parameters.
-
-    Attributes:
-        par_names -- any sequence containing the names of the missing parameters
-        msg  -- explanation of the error
-    """
-
-    def __init__(self, par_names, msg='ERROR: one or more parameters missing:'):
-        self.par_names = par_names
-        self.msg = msg
-
-
-class ParameterValue(Error):
-    """Raised when the provided parameter value is not valid.
-
-    Attributes:
-        par_value -- provided value
-        msg  -- explanation of the error
-    """
-
-    def __init__(self, par_value, msg='ERROR: Invalid parameter values:'):
-        self.par_value = par_value
-        self.msg = msg
 
 
 #
@@ -291,7 +288,7 @@ def generate_coupling(coupling, adjacency_matrix):
 
 def generate_delay(delay, adjacency_matrix):
     try:
-        # Ensure that a distribution has been specified
+         # Ensure that a distribution has been specified
         if 'distribution' not in delay:
             raise ParameterMissing('distribution')        
         # Ensure that the provided distribution is implemented
@@ -472,7 +469,6 @@ def run_dynamics(dynamics, adjacency_matrix, coupling_matrix, delay_matrix):
             # and replicate as many times as delay_max
             x[:, 0:delay_max] = np.tile(np.random.choice(np.array([0,1]), size=(nodes_n, 1)), delay_max)
 
-
             # Define activation function
             def f(x):
                 return x % 2
@@ -497,108 +493,63 @@ def run_dynamics(dynamics, adjacency_matrix, coupling_matrix, delay_matrix):
         return time_series
 
 
-def perform_network_inference(network_inference, time_series, parallel_target_analysis=False):
-    try:
-        # Ensure that a network inference algorithm has been specified
-        if 'algorithm' not in network_inference:
-            raise ParameterMissing('algorithm')        
-        # Ensure that the provided algorithm is implemented
-        if network_inference.algorithm not in network_inference_algorithms.index:
-            raise ParameterValue(network_inference.algorithm)
-        # Ensure that all the parameters required by the algorithm have been provided
-        par_required = network_inference_algorithms['Required parameters'][network_inference.algorithm]
-        for par in par_required:
-            if par not in network_inference:
-                raise ParameterMissing(par)
+def run_job_array(job_script_path, job_settings, job_args={}):
 
-    except ParameterMissing as e:
-        print(e.msg, e.par_names)
-        raise
-    except ParameterValue as e:
-        print(e.msg, e.par_value)
-        raise
+    settings = ' '.join(['-{0} {1}'.format(key, job_settings[key]) for key in job_settings.keys()])
+    args = '-v ' + ','.join(['{0}="{1}"'.format(key, job_args[key]) for key in job_args.keys()])
 
-    else:
-        nodes_n = len(time_series)
+    # Submit PBS job
+    call(
+        ('qsub {1} {2} {0}').format(
+            job_script_path,
+            settings,
+            args
+            ),
+        shell=True,
+        timeout=None
+    )
 
-        # Check if data can be normalised per process (assuming the
-        # first dimension represents processes, as in the rest of the code)
-        can_be_normalised = np.all(np.std(time_series, axis=1) > 0)
-        if not can_be_normalised:
-            print('Time series can not be normalised')
 
-        # initialise an empty data object
-        dat = Data()
+def main():
+    traj_dir = sys.argv[1]
+    traj_filename = sys.argv[2]
+    file_prefix = sys.argv[3]
+    run_i = 0
+    if len(sys.argv) > 4:
+        run_i = np.int(sys.argv[4])
 
-        # Load time series
-        dat = Data(time_series, dim_order='ps', normalise=can_be_normalised)
+    print('run_i= {0}'.format(run_i))
+    print('traj_dir= {0}'.format(traj_dir))
+    print('traj_filename= {0}'.format(traj_filename))
+    print('file_prefix= {0}'.format(file_prefix))
 
-        algorithm = network_inference.algorithm
-        if algorithm == 'mTE_greedy':
-            # Set analysis options
-            network_analysis = MultivariateTE(
-                min_lag_sources=network_inference.min_lag_sources,
-                max_lag_sources=network_inference.max_lag_sources,
-                options={
-                    'cmi_estimator':  network_inference.cmi_estimator,
-                    'num_threads': network_inference.jidt_threads_n,
-                    'permute_in_time': network_inference.permute_in_time,
-                    'n_perm_max_stat': network_inference.n_perm_max_stat,
-                    'n_perm_min_stat': network_inference.n_perm_min_stat,
-                    'n_perm_omnibus': network_inference.n_perm_omnibus,
-                    'n_perm_max_seq': network_inference.n_perm_max_seq,
-                    'fdr_correction': network_inference.fdr_correction,
-                    'alpha_max_stat': network_inference.p_value,
-                    'alpha_min_stat': network_inference.p_value,
-                    'alpha_omnibus': network_inference.p_value,
-                    'alpha_max_seq': network_inference.p_value,
-                    'alpha_fdr': network_inference.p_value,
-                    'kraskov_k': 64
-                }
+    # Change current directory to the one containing the trajectory files
+    os.chdir(traj_dir)
+
+    # Load the trajectory from the hdf5 file
+    traj_fullpath = os.path.join(traj_dir, traj_filename)
+    traj = Trajectory()
+    traj.f_load(
+                filename=traj_fullpath,
+                index=0,
+                as_new=False,
+                force=True,
+                load_parameters=2,
+                load_derived_parameters=2,
+                load_results=2,
+                load_other_data=2
             )
 
-            if parallel_target_analysis:
-                # Use SCOOP to create a generator of map results, each
-                # correspinding to one map ieration
-                #my_function = network_analysis.analyse_single_target
-                res_iterator = futures.map_as_completed(
-                    network_analysis.analyse_single_target,
-                    itertools.repeat(dat, nodes_n),
-                    list(range(nodes_n))
-                )
-                # Run analysis
-                res = {res_partial['target']: res_partial for res_partial in list(res_iterator)}
-            else:
-                # Run analysis
-                res = network_analysis.analyse_network(dat)
-            return res
+    # Set current run
+    traj.v_idx = run_i
 
-        else:
-            raise ParameterValue(algorithm, msg='Network inference algorithm not yet implemented')  
-
-
-def information_network_inference(traj):
-    """Runs Information Network inference
-
-    :param traj:
-
-        Container with all parameters.
-
-    :return:
-
-        Inferred Information Network
-
-    """
-
-    # Start timer
-    start_monotonic = time.monotonic()
-    start_perf_counter = time.perf_counter()
-    start_process_time = time.process_time()
+    # Read number of nodes
+    nodes_n = traj.par.topology.initial.nodes_n
 
     # Generate initial network
     G = generate_network(traj.par.topology.initial)
     # Get adjacency matrix
-    adjacency_matrix = pd.DataFrame(nx.to_numpy_matrix(G, nodelist=np.array(range(0, traj.par.topology.initial.nodes_n)), dtype=int))
+    adjacency_matrix = pd.DataFrame(nx.to_numpy_matrix(G, nodelist=np.array(range(0, nodes_n)), dtype=int))
     # Add self-loops
     np.fill_diagonal(adjacency_matrix.values, 1)
 
@@ -611,210 +562,31 @@ def information_network_inference(traj):
     # Run dynamics
     time_series = run_dynamics(traj.par.node_dynamics, adjacency_matrix, coupling_matrix, delay_matrix)
 
-    # Perform Information Network Inference
-    network_inference_result = perform_network_inference(traj.par.network_inference, time_series, traj.config.parallel_target_analysis)
+    # Save objects to disk
+    adjacency_matrix.to_csv(os.path.join(traj_dir, '.'.join([traj.v_crun, 'topology.initial.adjacency_matrix', 'csv'])))
+    coupling_matrix.to_csv(os.path.join(traj_dir, '.'.join([traj.v_crun, 'node_coupling.initial.coupling_matrix', 'csv'])))
+    delay_matrix.to_csv(os.path.join(traj_dir, '.'.join([traj.v_crun, 'delay.initial.delay_matrix', 'csv'])))
+    np.save(os.path.join(traj_dir, '.'.join([traj.v_crun, 'node_dynamics.time_series', 'npy'])), time_series)
 
-    # Compute elapsed time
-    end_monotonic = time.monotonic()
-    end_perf_counter = time.perf_counter()
-    end_process_time = time.process_time()
-    timing_df = pd.DataFrame(index=['monotonic', 'perf_counter', 'process_time'], columns=['start', 'end', 'resolution'])
-    timing_df.loc['monotonic'] = [start_monotonic, end_monotonic, time.get_clock_info('monotonic').resolution]
-    timing_df.loc['perf_counter'] = [start_perf_counter, end_perf_counter, time.get_clock_info('perf_counter').resolution]
-    timing_df.loc['process_time'] = [start_process_time, end_process_time, time.get_clock_info('process_time').resolution]
-    timing_df['elapsed'] = timing_df['end'] - timing_df['start']
+    # Path to PBS script
+    job_script_path = os.path.join(traj_dir, 'run_python_script.pbs')
 
-    # Add results to the trajectory
-    # The wildcard character $ will be replaced by the name of the current run,
-    # formatted as `run_XXXXXXXX`
-    traj.f_add_result('$.topology.initial', adjacency_matrix=adjacency_matrix, comment='')
-    traj.f_add_result('$.node_coupling.initial', coupling_matrix=coupling_matrix, comment='')
-    traj.f_add_result('$.delay.initial', delay_matrix=delay_matrix, comment='')
-    traj.f_add_result('$.node_dynamics', time_series=time_series, comment='')
-    traj.f_add_result('$.network_inference', network_inference_result=pd.DataFrame(network_inference_result), comment='')
-    traj.f_add_result('$.timing', timing=timing_df, comment='')
-
-    # return the analysis result
-    return network_inference_result
-
-
-def main():
-    """Main function to protect the *entry point* of the program.
-
-    If you want to use multiprocessing with SCOOP you need to wrap your
-    main code creating an environment into a function. Otherwise
-    the newly started child processes will re-execute the code and throw
-    errors (also see http://scoop.readthedocs.org/en/latest/usage.html#pitfalls).
-
-    """
-
-    # Get current directory
-    traj_dir = os.getcwd()
-    # Read output path (if provided)
-    if len(sys.argv) > 1:
-        # Only use specified folder if it exists
-        if os.path.isdir(sys.argv[1]):
-            # Get name of directory
-            traj_dir = os.path.dirname(sys.argv[1])
-            # Convert to full path
-            traj_dir = os.path.abspath(traj_dir)
-    # Add time stamp (final '' is to make sure there is a trailing slash)
-    traj_dir = os.path.join(traj_dir, datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss"), '')
-    # Create directory with time stamp
-    os.makedirs(traj_dir)
-    # Change current directory to the one containing the trajectory files
-    os.chdir(traj_dir)
-    print('Trajectory and results will be stored to: {0}'.format(traj_dir))
-
-    # # Start timer
-    # start_monotonic = time.monotonic()
-    # start_perf_counter = time.perf_counter()
-    # start_process_time = time.process_time()
-
-    # Create an environment that handles running.
-    # Let's enable multiprocessing with scoop:
-    env = Environment(
-        trajectory='traj',
-        comment='Experiment to quantify the discrepancy between '
-                'the inferred information network and the original '
-                'network structure.',
-        add_time=False,
-        log_config='DEFAULT',
-        log_stdout=True, # log everything thst is printed, will make the log file HUGE
-        filename=traj_dir,  #filename or just folder(name will be automatic in this case)
-        multiproc=True,
-
-        #use_pool=True,
-        #ncores=10,
-        
-        #freeze_input=True,
-
-        use_scoop=True,
-        wrap_mode=pypetconstants.WRAP_MODE_LOCAL,
-        memory_cap=10,
-        swap_cap=1
-        #cpu_cap=30
-
-        #,git_repository='' #path to the root git folder. The commit code will be added in the trajectory
-        #,git_fail=True #no automatic commits
-        #,sumatra_project='' #path to sumatra root folder,
-        #graceful_exit=True
-    )
-
-    traj = env.trajectory
-
-    # -------------------------------------------------------------------
-    # Add config parameters (those that DO NOT influence the final result of the experiment)
-    traj.f_add_config('parallel_target_analysis', True, comment='Analyse targets in parallel')
-
-    # -------------------------------------------------------------------
-    # Add "proper" parameters (those that DO influence the final result of the experiment)
-
-    # -------------------------------------------------------------------
-    # Parameters characterizing the network inference algorithm
-    traj.f_add_parameter('network_inference.algorithm', 'mTE_greedy')
-    traj.parameters.f_get('network_inference.algorithm').v_comment = network_inference_algorithms['Description'].get(traj.parameters['network_inference.algorithm'])
-    traj.f_add_parameter('network_inference.min_lag_sources', 1, comment='')
-    traj.f_add_parameter('network_inference.max_lag_sources', 5, comment='')
-    #traj.f_add_parameter('network_inference.cmi_estimator', 'JidtGaussianCMI', comment='Conditional Mutual Information estimator')
-    traj.f_add_parameter('network_inference.cmi_estimator', 'JidtKraskovCMI', comment='Conditional Mutual Information estimator')
-    #traj.f_add_parameter('network_inference.cmi_estimator', 'OpenCLKraskovCMI', comment='Conditional Mutual Information estimator')
-    traj.f_add_parameter('network_inference.permute_in_time', True, comment='')
-    traj.f_add_parameter('network_inference.jidt_threads_n', 1, comment='Number of threads used by JIDT estimator (default=USE_ALL)')
-    traj.f_add_parameter('network_inference.n_perm_max_stat', 2000, comment='')
-    traj.f_add_parameter('network_inference.n_perm_min_stat', 2000, comment='')
-    traj.f_add_parameter('network_inference.n_perm_omnibus', 2000, comment='')
-    traj.f_add_parameter('network_inference.n_perm_max_seq', 2000, comment='')
-    traj.f_add_parameter('network_inference.fdr_correction', False, comment='')
-
-    traj.f_add_parameter('network_inference.p_value', 0.05, comment='p-value to use for statistical significance testing')
-
-    # traj.f_add_parameter('network_inference.alpha_max_stats', traj.parameters['network_inference.p_value'], comment='')
-    # traj.f_add_parameter('network_inference.alpha_min_stats', traj.parameters['network_inference.p_value'], comment='')
-    # traj.f_add_parameter('network_inference.alpha_omnibus', traj.parameters['network_inference.p_value'], comment='')
-    # traj.f_add_parameter('network_inference.alpha_max_seq', traj.parameters['network_inference.p_value'], comment='')
-    # traj.f_add_parameter('network_inference.alpha_fdr', traj.parameters['network_inference.p_value'], comment='')
-
-    # -------------------------------------------------------------------
-    # Parameters characterizing the initial topology of the network
-    traj.f_add_parameter('topology.initial.model', 'ER_n_in')
-    traj.parameters.f_get('topology.initial.model').v_comment = topology_models['Description'].get(traj.parameters['topology.initial.model'])
-    traj.f_add_parameter('topology.initial.nodes_n', 5, comment='Number of nodes')
-    traj.f_add_parameter('topology.initial.in_degree_expected', 3, comment='Expected in-degree')
-
-    # -------------------------------------------------------------------
-    # Parameters characterizing the evolution of the topology
-    traj.f_add_parameter('topology.evolution.model', 'static')
-    traj.parameters.f_get('topology.evolution.model').v_comment = topology_evolution_models['Description'].get(traj.parameters['topology.evolution.model'])
-
-    # -------------------------------------------------------------------
-    # Parameters characterizing the coupling between the nodes
-    traj.f_add_parameter('node_coupling.initial.model', 'linear', comment='Linear coupling model: the input to each target node is the weighted sum of the outputs of its source nodes')
-    traj.f_add_parameter('node_coupling.initial.weight_distribution', 'deterministic')
-    traj.parameters.f_get('node_coupling.initial.weight_distribution').v_comment = weight_distributions['Description'].get(traj.parameters['node_coupling.initial.weight_distribution'])
-    traj.f_add_parameter('node_coupling.initial.self_coupling', 0.5, comment='The self-coupling is the weight of the self-loop')
-    traj.f_add_parameter('node_coupling.initial.total_cross_coupling', 0.4, comment='The total cross-coupling is the sum of all incoming weights from the sources only')
-
-    # -------------------------------------------------------------------
-    # Parameters characterizing the delay
-    traj.f_add_parameter('delay.initial.distribution', 'uniform')
-    traj.parameters.f_get('delay.initial.distribution').v_comment = delay_distributions['Description'].get(traj.parameters['delay.initial.distribution'])
-    traj.f_add_parameter('delay.initial.delay_links_n_max', 2, comment='Maximum number of delay links')
-    traj.f_add_parameter('delay.initial.delay_min', 1, comment='')
-    traj.f_add_parameter('delay.initial.delay_max', 5, comment='')
-    traj.f_add_parameter('delay.initial.delay_self', 1, comment='')
-
-    # -------------------------------------------------------------------
-    # Parameters characterizing the dynamics of the nodes
-    #traj.f_add_parameter('node_dynamics.model', 'logistic_map')
-    traj.f_add_parameter('node_dynamics.model', 'AR_gaussian_discrete')
-    traj.parameters.f_get('node_dynamics.model').v_comment = node_dynamics_models['Description'].get(traj.parameters['node_dynamics.model'])
-    traj.f_add_parameter('node_dynamics.samples_n', 100, comment='Number of samples (observations) to record')
-    traj.f_add_parameter('node_dynamics.samples_transient_n', 1000 * traj.topology.initial.nodes_n, comment='Number of initial samples (observations) to skip to leave out the transient')
-    traj.f_add_parameter('node_dynamics.noise_amplitude', 0.1, comment='Standard deviation of Gaussian noise')
-
-    # -------------------------------------------------------------------
-    # Parameters characterizing the repetitions of the same run
-    traj.f_add_parameter('repetition_i', 0, comment='Index of the current repetition') # Normally starts from 0
-
-    # -------------------------------------------------------------------
-    # Define parameter combinations to explore (a trajectory in
-    # the parameter space)
-    # The second argument, the tuple, specifies the order of the cartesian product,
-    # The variable on the right most side changes fastest and defines the
-    # 'inner for-loop' of the cartesian product
-    explore_dict = cartesian_product(
-        {
-            'repetition_i': np.arange(0, 5, 1).tolist(),
-            'topology.initial.nodes_n': np.arange(10, 40+1, 30).tolist(),
-            'node_dynamics.samples_n': (10 ** np.arange(3, 3+0.1, 1)).round().astype(int).tolist(),
-            'network_inference.p_value': np.array([0.01]).tolist()
-        },
-        ('repetition_i', 'topology.initial.nodes_n', 'node_dynamics.samples_n', 'network_inference.p_value')
-    )
-    traj.f_explore(explore_dict)
-
-    # -------------------------------------------------------------------
-    # Run the experiment
-    env.run(information_network_inference)
-
-    # # Compute total elapsed time
-    # end_monotonic = time.monotonic()
-    # end_perf_counter = time.perf_counter()
-    # end_process_time = time.process_time()
-    # timing_df = pd.DataFrame(index=['monotonic', 'perf_counter', 'process_time'], columns=['start', 'end', 'resolution'])
-    # timing_df.loc['monotonic'] = [start_monotonic, end_monotonic, time.get_clock_info('monotonic').resolution]
-    # timing_df.loc['perf_counter'] = [start_perf_counter, end_perf_counter, time.get_clock_info('perf_counter').resolution]
-    # timing_df.loc['process_time'] = [start_process_time, end_process_time, time.get_clock_info('process_time').resolution]
-    # timing_df['elapsed'] = timing_df['end'] - timing_df['start']
-    # # Add total timing to trajectory
-    # traj.f_add_result('timing', timing_total=timing_df, comment='')
-
-    # Check that all runs are completed
-    assert traj.f_is_completed()
-
-    # Finally disable logging and close all log-files
-    env.disable_logging()
+    # Run job array
+    job_walltime_hours = 10
+    job_walltime_minutes = 0
+    job_settings = {
+        'N': 'run{0}'.format(run_i),
+        'J': '{0}-{1}'.format(0, nodes_n - 1),
+        'l': 'walltime={0}:{1}:00'.format(job_walltime_hours, job_walltime_minutes),
+        'q': 'defaultQ'
+    }
+    job_args = {
+        'python_script_path': '/project/RDS-FEI-InfoDynFuncStruct-RW/Leo/inference/hpc_pypet_single_target.py',
+        'traj_dir': traj_dir,
+        'traj_filename': traj_filename,
+        'file_prefix': traj.v_crun
+    }
+    run_job_array(job_script_path, job_settings, job_args)
 
 
 if __name__ == '__main__':
