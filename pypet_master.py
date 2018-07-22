@@ -5,11 +5,14 @@ import time
 import numpy as np
 import pandas as pd
 from pypet import Environment
+from pypet import PickleResult
 from pypet import pypetconstants
 from pypet.utils.explore import cartesian_product
 import networkx as nx
 from idtxl.multivariate_te import MultivariateTE
 from idtxl.data import Data
+from idtxl.results import Results
+from idtxl.stats import network_fdr
 from scoop import futures
 import itertools
 
@@ -99,9 +102,23 @@ node_dynamics_models['Description'] = pd.Series({
     'boolean_XOR': 'Every node computes the XOR of its inputs'
 })
 node_dynamics_models['Required parameters'] = pd.Series({
-    'AR_gaussian_discrete': ('samples_n', 'samples_transient_n', 'noise_amplitude'),
-    'logistic_map': ('samples_n', 'samples_transient_n', 'noise_amplitude'),
-    'boolean_XOR': ('samples_n', 'samples_transient_n')
+    'AR_gaussian_discrete': (
+        'samples_n',
+        'samples_transient_n',
+        'replications',
+        'noise_std'
+    ),
+    'logistic_map': (
+        'samples_n',
+        'samples_transient_n',
+        'replications',
+        'noise_std'
+    ),
+    'boolean_XOR': (
+        'samples_n',
+        'samples_transient_n',
+        'replications'
+    )
 })
 
 
@@ -229,9 +246,9 @@ def generate_coupling(coupling, adjacency_matrix):
         # Initialise coupling matrix as a copy of the adjacency matrix
         coupling_matrix = adjacency_matrix.copy()
         # Temporarily remove self-loops
-        np.fill_diagonal(coupling_matrix.values, 0)
+        np.fill_diagonal(coupling_matrix, 0)
         # Count links (excluding self-loops)
-        links_count = (coupling_matrix > 0).values.sum()
+        links_count = (coupling_matrix > 0).sum()
 
         # Read distribution
         distribution = coupling.weight_distribution
@@ -250,12 +267,12 @@ def generate_coupling(coupling, adjacency_matrix):
                 raise ValueError('ERROR: absolute value of (self coupling - total cross coupling) >= 1')
             # Generate weights and normalise to total cross-coupling
             for node_id in range(0, nodes_n):
-                column = coupling_matrix.iloc[:, node_id]
+                column = coupling_matrix[:, node_id]
                 weights_sum = column.sum()
                 if weights_sum > 0:
-                    coupling_matrix.iloc[:, node_id] = c * column / weights_sum
+                    coupling_matrix[:, node_id] = c * column / weights_sum
             # Set weight of self-loops
-            np.fill_diagonal(coupling_matrix.values, coupling.self_coupling)
+            np.fill_diagonal(coupling_matrix, coupling.self_coupling)
             return coupling_matrix
 
         elif distribution == 'uniform':
@@ -263,12 +280,12 @@ def generate_coupling(coupling, adjacency_matrix):
             # from the [0,1] interval and normalizing to total_cross_coupling
             coupling_matrix[adjacency_matrix > 0] = np.random.rand(links_count)
             for node_id in range(0, nodes_n):
-                column = coupling_matrix.iloc[:, node_id]
+                column = coupling_matrix[:, node_id]
                 weights_sum = column.sum()
                 if weights_sum > 0:
-                    coupling_matrix.iloc[:, node_id] = c * column / weights_sum
+                    coupling_matrix[:, node_id] = c * column / weights_sum
             # Set weight of self-loops
-            np.fill_diagonal(coupling_matrix.values, coupling.self_coupling)
+            np.fill_diagonal(coupling_matrix, coupling.self_coupling)
             return coupling_matrix
 
         else:
@@ -311,27 +328,26 @@ def generate_delay(delay, adjacency_matrix):
             # Check consistency of parameters
             if delay.delay_min < 1:
                 raise ParameterValue(par_value=delay_min, msg='ERROR: Minimum delay must be positive')
-            if delay.delay_max <= delay.delay_min:
-                raise ParameterValue(par_value=delay_max, msg='ERROR: Maximum delay must be bigger than minimum delay')
+            if delay.delay_max < delay.delay_min:
+                raise ParameterValue(par_value=delay_max, msg='ERROR: Maximum delay must be larger or equal to the minimum delay')
             if delay.delay_links_n_max > delay.delay_max - delay.delay_min + 1:
-                raise ParameterValue(par_value=delay_links_n_max, msg='ERROR: Number of delay links must be bigger than (max delay - min delay)')
+                raise ParameterValue(par_value=delay_links_n_max, msg='ERROR: Number of delay links must be smaller or equal to (max delay - min delay + 1)')
 
-            # Generate random delay matrix by uniformly sampling integers from
+            # Generate random delay matrices by uniformly sampling integers from
             # the [delay_min,delay_max] interval
-            delay_matrix = pd.DataFrame([([] for _ in range(nodes_n)) for _ in range(nodes_n)])
-            for (x, y) in np.transpose(np.nonzero(adjacency_matrix.values > 0)):
-                delay_matrix.iloc[x, y] = np.random.choice(
-                    np.arange(delay_min, delay_max),
-                    size=np.random.randint(1, delay_links_n_max),
-                    replace=False
-                    ).astype(int)
-            # Impose specific self-delay
-            for x in range(nodes_n):
-                delay_matrix.iloc[x, x] = np.array([delay_self]).astype(int)
-            #np.fill_diagonal(delay_matrix.values, [delay_self])
-            # Convert to integer numbers (they will be used as indices and need to be integers)
-            #delay_matrix = delay_matrix.astype(int)
-            return delay_matrix
+            delay_matrices = np.zeros((delay_max, nodes_n, nodes_n), dtype=int)
+            for (x, y) in np.transpose(np.nonzero(adjacency_matrix > 0)):
+                if x == y:
+                    # Impose specific self-delay
+                    delay_matrices[delay_self - 1, x, x] = 1
+                else:
+                    delay_values = np.random.choice(
+                        np.arange(delay_min, delay_max + 1),
+                        size=np.random.randint(1, delay_links_n_max + 1),
+                        replace=False
+                        ).astype(int)
+                    delay_matrices[delay_values - 1, x, y] = 1
+            return delay_matrices
 
         else:
             raise ParameterValue(
@@ -340,7 +356,7 @@ def generate_delay(delay, adjacency_matrix):
             )
 
 
-def run_dynamics(dynamics, adjacency_matrix, coupling_matrix, delay_matrix):
+def run_dynamics(dynamics, coefficient_matrices):
     try:
         # Ensure that a dynamical model has been specified
         if 'model' not in dynamics:
@@ -364,12 +380,8 @@ def run_dynamics(dynamics, adjacency_matrix, coupling_matrix, delay_matrix):
     else:
         # Run dynamics
 
-        nodes_n = len(adjacency_matrix)
-        delay_max = max(delay_matrix)
-
-        # Initialise time series matrix to return
-        #time_series = np.empty((nodes_n, samples_n))
-        #time_series.fill(numpy.nan)
+        nodes_n = np.shape(coefficient_matrices)[1]
+        delay_max = np.shape(coefficient_matrices)[0]
 
         model = dynamics.model
         if model == 'AR_gaussian_discrete':
@@ -377,108 +389,156 @@ def run_dynamics(dynamics, adjacency_matrix, coupling_matrix, delay_matrix):
             # Read required parameters
             samples_n = dynamics.samples_n
             samples_transient_n = dynamics.samples_transient_n
-            noise_amplitude = dynamics.noise_amplitude
+            replications = dynamics.replications
+            noise_std = dynamics.noise_std
+
+            # Check stability of the VAR process, which is a sufficient condition
+            # for stationarity.
+            var_reduced_form = np.zeros((
+                nodes_n * delay_max,
+                nodes_n * delay_max
+            ))
+            var_reduced_form[0:nodes_n, :] = np.reshape(
+                np.transpose(coefficient_matrices, (1, 0, 2)),
+                [nodes_n, nodes_n * delay_max]
+                )
+            var_reduced_form[nodes_n:, 0:nodes_n * (delay_max - 1)] = np.eye(
+                nodes_n * (delay_max - 1)
+            )
+            # Condition for stability: the absolute values of all the eigenvalues
+            # of the reduced-form coefficeint matrix are smaller than 1. A stable
+            # VAR process is also stationary.
+            is_stable = max(np.abs(np.linalg.eigvals(var_reduced_form))) < 1
+            if not is_stable:
+                RuntimeError('VAR process is not stable and may be nonstationary.')
 
             # Initialise time series matrix
-            # NOTE: By choice, the first dimension will represent processes and
-            # the second dimension samples
-            x = np.zeros((nodes_n, delay_max + samples_transient_n + samples_n))
+            # The 3 dimensions represent (processes, samples, replications)
+            x = np.zeros((
+                nodes_n,
+                delay_max + samples_transient_n + samples_n,
+                replications
+            ))
 
-            # Generate initial conditions:
-            # Uniformly sample from the [0,1] interval
-            # and replicate as many times as delay_max
-            x[:, 0:delay_max] = np.tile(np.random.rand(nodes_n, 1), delay_max)
+            # Generate (different) initial conditions for each replication:
+            # Uniformly sample from the [0,1] interval and tile as many
+            # times as delay_max along the second dimension
+            x[:, 0:delay_max, :] = np.tile(
+                np.random.rand(nodes_n, 1, replications),
+                (1, delay_max, 1)
+            )
 
-            for i_sample in range(delay_max, delay_max + samples_transient_n + samples_n):
-                for i_target in range(0, nodes_n):
-                    sources = np.flatnonzero(adjacency_matrix.values[:, i_target])
-                    past_all_weighted_sum = 0
-                    for source in sources:
-                        past_single = x[source, i_sample - delay_matrix.iloc[source, i_target]]
-                        past_single_weighted_sum = np.sum(past_single * coupling_matrix.values[source, i_target] / len(past_single))
-                        past_all_weighted_sum += past_single_weighted_sum
-                    x[i_target, i_sample] = past_all_weighted_sum + np.random.normal() * noise_amplitude
+            # Generate time series
+            for i_repl in range(0, replications):
+                for i_sample in range(delay_max, delay_max + samples_transient_n + samples_n):
+                    for i_delay in range(1, delay_max + 1):
+                        x[:, i_sample, i_repl] += np.dot(
+                            coefficient_matrices[i_delay - 1, :, :],
+                            x[:, i_sample - i_delay, i_repl]
+                        )
+                    # Add uncorrelated Gaussian noise vector
+                    x[:, i_sample, i_repl] += np.random.normal(
+                        0,  # mean
+                        noise_std,
+                        x[:, i_sample, i_repl].shape
+                    )
 
-            # Skip samples to ensure the removal of transient effects
-            # (only take end of time series)
-            time_series = x[:, -(samples_n + 1):-1]
-
-            #for i_sample in range(delay_max, delay_max + samples_transient_n + samples_n):
-            #    for i_target in range(0, nodes_n):
-            #        sources = adjacency_matrix.values[:, i_target] > 0
-            #        past = x[sources, i_sample - delay_matrix.values[sources, i_target].astype(int)[0]] #<-----REMOVE [0] AND REPLACE WITH A LOOP OVER SOURCES
-            #        x[i_target, i_sample] = np.inner(past, coupling_matrix.values[sources, i_target]) + np.random.normal() * noise_amplitude
+            # Discard transient effects (only take end of time series)
+            time_series = x[:, -(samples_n + 1):-1, :]
 
         elif model == 'logistic_map':
-
-            # Read required parameters
-            samples_n = dynamics.samples_n
-            samples_transient_n = dynamics.samples_transient_n
-            noise_amplitude = dynamics.noise_amplitude
-
-            # Initialise time series matrix
-            # NOTE: By choice, the first dimension will represent processes and
-            # the second dimension samples
-            x = np.zeros((nodes_n, delay_max + samples_transient_n + samples_n))
-
-            # Generate initial conditions:
-            # Uniformly sample from the [0,1] interval
-            # and replicate as many times as delay_max
-            x[:, 0:delay_max] = np.tile(np.random.rand(nodes_n, 1), delay_max)
-
 
             # Define activation function
             def f(x):
                 return 4 * x * (1 - x)
 
-            for i_sample in range(delay_max, delay_max + samples_transient_n + samples_n):
-                for i_target in range(0, nodes_n):
-                    sources = np.flatnonzero(adjacency_matrix.values[:, i_target])
-                    past_all_weighted_sum = 0
-                    for source in sources:
-                        past_single = x[source, i_sample - delay_matrix.iloc[source, i_target]]
-                        past_single_weighted_sum = np.sum(past_single * coupling_matrix.values[source, i_target] / len(past_single))
-                        past_all_weighted_sum += past_single_weighted_sum
-                    x[i_target, i_sample] = (f(past_all_weighted_sum) + np.random.normal() * noise_amplitude) % 1
-
-            # Skip samples to ensure the removal of transient effects
-            # (only take end of time series)
-            time_series = x[:, -(samples_n + 1):-1]
-
-        elif model == 'boolean_XOR':
-
             # Read required parameters
             samples_n = dynamics.samples_n
             samples_transient_n = dynamics.samples_transient_n
+            replications = dynamics.replications
+            noise_std = dynamics.noise_std
 
             # Initialise time series matrix
-            # NOTE: By choice, the first dimension will represent processes and
-            # the second dimension samples
-            x = np.zeros((nodes_n, delay_max + samples_transient_n + samples_n))
+            # The 3 dimensions represent (processes, samples, replications)
+            x = np.zeros((
+                nodes_n,
+                delay_max + samples_transient_n + samples_n,
+                replications
+            ))
 
-            # Generate initial conditions:
-            # Uniformly sample from the {0,1} set
-            # and replicate as many times as delay_max
-            x[:, 0:delay_max] = np.tile(np.random.choice(np.array([0,1]), size=(nodes_n, 1)), delay_max)
+            # Generate (different) initial conditions for each replication:
+            # Uniformly sample from the [0,1] interval and tile as many
+            # times as delay_max along the second dimension
+            x[:, 0:delay_max, :] = np.tile(
+                np.random.rand(nodes_n, 1, replications),
+                (1, delay_max, 1)
+            )
 
+            # Generate time series
+            for i_repl in range(0, replications):
+                for i_sample in range(delay_max, delay_max + samples_transient_n + samples_n):
+                    for i_delay in range(1, delay_max + 1):
+                        x[:, i_sample, i_repl] += np.dot(
+                            coefficient_matrices[i_delay - 1, :, :],
+                            x[:, i_sample - i_delay, i_repl]
+                        )
+                    # Compute activation function
+                    x[:, i_sample, i_repl] = f(x[:, i_sample, i_repl])
+                    # Add uncorrelated Gaussian noise vector
+                    x[:, i_sample, i_repl] += np.random.normal(
+                        0,  # mean
+                        noise_std,
+                        x[:, i_sample, i_repl].shape
+                    )
+                    # ensure values are in the [0, 1] range
+                    x[:, i_sample, i_repl] = x[:, i_sample, i_repl] % 1
+
+            # Discard transient effects (only take end of time series)
+            time_series = x[:, -(samples_n + 1):-1, :]
+
+        elif model == 'boolean_XOR':
 
             # Define activation function
             def f(x):
                 return x % 2
 
-            for i_sample in range(delay_max, delay_max + samples_transient_n + samples_n):
-                for i_target in range(0, nodes_n):
-                    sources = np.flatnonzero(adjacency_matrix.values[:, i_target])
-                    past_all_sum = 0
-                    for source in sources:
-                        past_single = x[source, i_sample - delay_matrix.iloc[source, i_target]]
-                        past_single_sum = np.sum(past_single)
-                        past_all_sum += past_single_sum
-                    x[i_target, i_sample] = f(past_all_sum)
+            # binarize coupling matrices
+            coefficient_matrices = np.where(coefficient_matrices > 0, 1, 0)
 
-            # Skip samples to ensure the removal of transient effects
-            # (only take end of time series)
-            time_series = x[:, -(samples_n + 1):-1]
+            # Read required parameters
+            samples_n = dynamics.samples_n
+            samples_transient_n = dynamics.samples_transient_n
+            replications = dynamics.replications
+
+            # Initialise time series matrix
+            # The 3 dimensions represent (processes, samples, replications)
+            x = np.zeros((
+                nodes_n,
+                delay_max + samples_transient_n + samples_n,
+                replications
+            ))
+
+            # Generate (different) initial conditions for each replication:
+            # Uniformly sample from the {0,1} set and tile as many
+            # times as delay_max along the second dimension
+            x[:, 0:delay_max, :] = np.tile(
+                np.random.choice(np.array([0, 1]), size=(nodes_n, 1, replications)),
+                (1, delay_max, 1)
+            )
+
+            # Generate time series
+            for i_repl in range(0, replications):
+                for i_sample in range(delay_max, delay_max + samples_transient_n + samples_n):
+                    for i_delay in range(1, delay_max + 1):
+                        x[:, i_sample, i_repl] += np.dot(
+                            coefficient_matrices[i_delay - 1, :, :],
+                            x[:, i_sample - i_delay, i_repl]
+                        )
+                    # Compute activation function
+                    x[:, i_sample, i_repl] = f(x[:, i_sample, i_repl])
+
+            # Discard transient effects (only take end of time series)
+            time_series = x[:, -(samples_n + 1):-1, :]
 
         else:
             raise ParameterValue(model, msg='Dynamical model not yet implemented')    
@@ -508,7 +568,8 @@ def perform_network_inference(network_inference, time_series, parallel_target_an
         raise
 
     else:
-        nodes_n = len(time_series)
+        nodes_n = np.shape(time_series)[0]
+        samples_n = np.shape(time_series)[1]
 
         # Check if data can be normalised per process (assuming the
         # first dimension represents processes, as in the rest of the code)
@@ -520,7 +581,7 @@ def perform_network_inference(network_inference, time_series, parallel_target_an
         dat = Data()
 
         # Load time series
-        dat = Data(time_series, dim_order='ps', normalise=can_be_normalised)
+        dat = Data(time_series, dim_order='psr', normalise=can_be_normalised)
 
         algorithm = network_inference.algorithm
         if algorithm == 'mTE_greedy':
@@ -544,7 +605,7 @@ def perform_network_inference(network_inference, time_series, parallel_target_an
                 'alpha_max_seq': network_inference.p_value,
                 'alpha_fdr': network_inference.p_value
             }
-            
+
             if parallel_target_analysis:
                 # Use SCOOP to create a generator of map results, each
                 # correspinding to one map ieration
@@ -556,10 +617,21 @@ def perform_network_inference(network_inference, time_series, parallel_target_an
                     list(range(nodes_n))
                 )
                 # Run analysis
-                res = {res_partial['target']: res_partial for res_partial in list(res_iterator)}
+                res_list = list(res_iterator)
+                if settings['fdr_correction']:
+                    res = network_fdr(
+                        {'alpha_fdr': settings['alpha_fdr']},
+                        *res_list
+                    )
+                else:
+                    res = res_list[0]
+                    res.combine_results(*res_list[1:])
             else:
                 # Run analysis
-                res = network_analysis.analyse_network(data=dat, settings=settings)
+                res = network_analysis.analyse_network(
+                    settings=settings,
+                    data=dat
+                )
             return res
 
         else:
@@ -587,40 +659,93 @@ def information_network_inference(traj):
     # Generate initial network
     G = generate_network(traj.par.topology.initial)
     # Get adjacency matrix
-    adjacency_matrix = pd.DataFrame(nx.to_numpy_matrix(G, nodelist=np.array(range(0, traj.par.topology.initial.nodes_n)), dtype=int))
+    adjacency_matrix = np.array(nx.to_numpy_matrix(
+        G,
+        nodelist=np.array(range(0, traj.par.topology.initial.nodes_n)),
+        dtype=int
+    ))
     # Add self-loops
-    np.fill_diagonal(adjacency_matrix.values, 1)
+    np.fill_diagonal(adjacency_matrix, 1)
 
     # Generate initial node coupling
-    coupling_matrix = generate_coupling(traj.par.node_coupling.initial, adjacency_matrix)
+    coupling_matrix = generate_coupling(
+        traj.par.node_coupling.initial,
+        adjacency_matrix
+    )
 
     # Generate delay
-    delay_matrix = generate_delay(traj.par.delay.initial, adjacency_matrix)
+    delay_matrices = generate_delay(traj.par.delay.initial, adjacency_matrix)
+
+    # Generate coefficient matrices
+    coefficient_matrices = np.transpose(delay_matrices * coupling_matrix, (0, 2, 1))
 
     # Run dynamics
-    time_series = run_dynamics(traj.par.node_dynamics, adjacency_matrix, coupling_matrix, delay_matrix)
+    time_series = run_dynamics(
+        traj.par.node_dynamics,
+        coefficient_matrices
+    )
 
     # Perform Information Network Inference
-    network_inference_result = perform_network_inference(traj.par.network_inference, time_series, traj.config.parallel_target_analysis)
+    network_inference_result = perform_network_inference(
+        traj.par.network_inference,
+        time_series,
+        traj.config.parallel_target_analysis
+    )
 
     # Compute elapsed time
     end_monotonic = time.monotonic()
     end_perf_counter = time.perf_counter()
     end_process_time = time.process_time()
-    timing_df = pd.DataFrame(index=['monotonic', 'perf_counter', 'process_time'], columns=['start', 'end', 'resolution'])
-    timing_df.loc['monotonic'] = [start_monotonic, end_monotonic, time.get_clock_info('monotonic').resolution]
-    timing_df.loc['perf_counter'] = [start_perf_counter, end_perf_counter, time.get_clock_info('perf_counter').resolution]
-    timing_df.loc['process_time'] = [start_process_time, end_process_time, time.get_clock_info('process_time').resolution]
+    timing_df = pd.DataFrame(
+        index=['monotonic', 'perf_counter', 'process_time'],
+        columns=['start', 'end', 'resolution']
+    )
+    timing_df.loc['monotonic'] = [
+        start_monotonic, end_monotonic,
+        time.get_clock_info('monotonic').resolution
+    ]
+    timing_df.loc['perf_counter'] = [
+        start_perf_counter,
+        end_perf_counter,
+        time.get_clock_info('perf_counter').resolution
+    ]
+    timing_df.loc['process_time'] = [
+        start_process_time,
+        end_process_time,
+        time.get_clock_info('process_time').resolution
+    ]
     timing_df['elapsed'] = timing_df['end'] - timing_df['start']
 
     # Add results to the trajectory
     # The wildcard character $ will be replaced by the name of the current run,
     # formatted as `run_XXXXXXXX`
-    traj.f_add_result('$.topology.initial', adjacency_matrix=adjacency_matrix, comment='')
-    traj.f_add_result('$.node_coupling.initial', coupling_matrix=coupling_matrix, comment='')
-    traj.f_add_result('$.delay.initial', delay_matrix=delay_matrix, comment='')
-    traj.f_add_result('$.node_dynamics', time_series=time_series, comment='')
-    traj.f_add_result('$.network_inference', network_inference_result=pd.DataFrame(network_inference_result), comment='')
+    traj.f_add_result(
+        '$.topology.initial',
+        adjacency_matrix=adjacency_matrix,
+        comment=''
+    )
+    traj.f_add_result(
+        '$.node_coupling.initial',
+        coupling_matrix=coupling_matrix,
+        coefficient_matrices=coefficient_matrices,
+        comment=''
+    )
+    traj.f_add_result(
+        '$.delay.initial',
+        delay_matrices=delay_matrices,
+        comment=''
+    )
+    traj.f_add_result(
+        '$.node_dynamics',
+        time_series=time_series,
+        comment=''
+    )
+    traj.f_add_result(
+        PickleResult,
+        '$.network_inference',
+        network_inference_result=network_inference_result,
+        comment=''
+    )
     traj.f_add_result('$.timing', timing=timing_df, comment='')
 
     # return the analysis result
@@ -705,16 +830,16 @@ def main():
     traj.parameters.f_get('network_inference.algorithm').v_comment = network_inference_algorithms['Description'].get(traj.parameters['network_inference.algorithm'])
     traj.f_add_parameter('network_inference.min_lag_sources', 1, comment='')
     traj.f_add_parameter('network_inference.max_lag_sources', 5, comment='')
-    #traj.f_add_parameter('network_inference.cmi_estimator', 'JidtGaussianCMI', comment='Conditional Mutual Information estimator')
-    traj.f_add_parameter('network_inference.cmi_estimator', 'JidtKraskovCMI', comment='Conditional Mutual Information estimator')
+    traj.f_add_parameter('network_inference.cmi_estimator', 'JidtGaussianCMI', comment='Conditional Mutual Information estimator')
+    #traj.f_add_parameter('network_inference.cmi_estimator', 'JidtKraskovCMI', comment='Conditional Mutual Information estimator')
     #traj.f_add_parameter('network_inference.cmi_estimator', 'OpenCLKraskovCMI', comment='Conditional Mutual Information estimator')
-    traj.f_add_parameter('network_inference.permute_in_time', True, comment='')
+    traj.f_add_parameter('network_inference.permute_in_time', False, comment='')
     traj.f_add_parameter('network_inference.jidt_threads_n', 1, comment='Number of threads used by JIDT estimator (default=USE_ALL)')
-    traj.f_add_parameter('network_inference.n_perm_max_stat', 2000, comment='')
-    traj.f_add_parameter('network_inference.n_perm_min_stat', 2000, comment='')
-    traj.f_add_parameter('network_inference.n_perm_omnibus', 2000, comment='')
-    traj.f_add_parameter('network_inference.n_perm_max_seq', 2000, comment='')
-    traj.f_add_parameter('network_inference.fdr_correction', False, comment='')
+    traj.f_add_parameter('network_inference.n_perm_max_stat', 200, comment='')
+    traj.f_add_parameter('network_inference.n_perm_min_stat', 200, comment='')
+    traj.f_add_parameter('network_inference.n_perm_omnibus', 200, comment='')
+    traj.f_add_parameter('network_inference.n_perm_max_seq', 200, comment='')
+    traj.f_add_parameter('network_inference.fdr_correction', True, comment='')
 
     traj.f_add_parameter('network_inference.p_value', 0.05, comment='p-value to use for statistical significance testing')
 
@@ -742,7 +867,7 @@ def main():
     traj.f_add_parameter('node_coupling.initial.weight_distribution', 'deterministic')
     traj.parameters.f_get('node_coupling.initial.weight_distribution').v_comment = weight_distributions['Description'].get(traj.parameters['node_coupling.initial.weight_distribution'])
     traj.f_add_parameter('node_coupling.initial.self_coupling', 0.5, comment='The self-coupling is the weight of the self-loop')
-    traj.f_add_parameter('node_coupling.initial.total_cross_coupling', 0.4, comment='The total cross-coupling is the sum of all incoming weights from the sources only')
+    traj.f_add_parameter('node_coupling.initial.total_cross_coupling', 0.35, comment='The total cross-coupling is the sum of all incoming weights from the sources only')
 
     # -------------------------------------------------------------------
     # Parameters characterizing the delay
@@ -760,7 +885,8 @@ def main():
     traj.parameters.f_get('node_dynamics.model').v_comment = node_dynamics_models['Description'].get(traj.parameters['node_dynamics.model'])
     traj.f_add_parameter('node_dynamics.samples_n', 100, comment='Number of samples (observations) to record')
     traj.f_add_parameter('node_dynamics.samples_transient_n', 1000 * traj.topology.initial.nodes_n, comment='Number of initial samples (observations) to skip to leave out the transient')
-    traj.f_add_parameter('node_dynamics.noise_amplitude', 0.1, comment='Amplitude of Gaussian noise')
+    traj.f_add_parameter('node_dynamics.replications', 10, comment='Number of replications (trials) to record')
+    traj.f_add_parameter('node_dynamics.noise_std', 0.1, comment='Standard deviation of Gaussian noise')
 
     # -------------------------------------------------------------------
     # Parameters characterizing the repetitions of the same run
@@ -774,11 +900,11 @@ def main():
     # 'inner for-loop' of the cartesian product
     explore_dict = cartesian_product(
         {
-            'repetition_i': np.arange(0, 2, 1).tolist(),
+            'repetition_i': np.arange(0, 1, 1).tolist(),
             'topology.initial.nodes_n': np.arange(5, 5+1, 5).tolist(),
-            'node_dynamics.samples_n': (10 ** np.arange(2, 2+0.1, 1)).round().astype(int).tolist(),
+            'node_dynamics.samples_n': (10 ** np.arange(1, 1+0.1, 1)).round().astype(int).tolist(),
             #'network_inference.p_value': np.array([0.05]).tolist()
-            'network_inference.p_value': np.array([0.001, 0.01]).tolist()
+            'network_inference.p_value': np.array([0.05]).tolist()
         },
         ('repetition_i', 'topology.initial.nodes_n', 'node_dynamics.samples_n', 'network_inference.p_value')
     )
