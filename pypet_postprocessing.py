@@ -2,15 +2,15 @@ from pypet import Trajectory
 import os
 import numpy as np
 import pandas as pd
-from idtxl.visualise_graph import _get_adj_matrix
+#from idtxl.visualise_graph import _get_adj_matrix
 from idtxl.stats import network_fdr
-# from mylib_pypet import print_leaves
+from mylib_pypet import print_leaves
 
 fdr = False
 
 # Load the trajectory from the hdf5 file
 # Only load parameters, results will be loaded at runtime (auto loading)
-traj_dir = os.path.join('trajectories', '2018_04_19_15h06m42s')
+traj_dir = os.path.join('../trajectories', '2018_07_21_23h31m59s')
 traj_filename = 'traj.hdf5'
 traj_fullpath = os.path.join(traj_dir, traj_filename)
 traj = Trajectory()
