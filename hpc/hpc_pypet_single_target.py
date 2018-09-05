@@ -5,7 +5,7 @@ from pypet import Trajectory
 from idtxl.multivariate_te import MultivariateTE
 from idtxl.data import Data
 import pickle
-import time
+# import time
 
 
 # Use pickle module to save dictionaries
@@ -25,7 +25,7 @@ print('traj_dir= {0}'.format(traj_dir))
 print('traj_filename= {0}'.format(traj_filename))
 print('file_prefix= {0}'.format(file_prefix))
 
-#try:
+# try:
 # Load the trajectory from the hdf5 file
 traj = Trajectory()
 traj.f_load(
@@ -46,10 +46,10 @@ time_series = np.load(
     )
 )
 
-#except:
+# except:
 #    raise
 
-#else:
+# else:
 
 network_inference = traj.parameters.network_inference
 
@@ -100,6 +100,21 @@ if algorithm == 'mTE_greedy':
         'alpha_fdr': network_inference.p_value
         # 'add_conditionals': [(33, 4), (21, 2), (20, 3), (4, 2), (13, 2), (33, 1)]
     }
+
+    # Add optional settings
+    optional_settings_keys = {
+        'config.debug',
+        'config.max_mem_frac'
+    }
+
+    for key in optional_settings_keys:
+        if traj.f_contains(key, shortcuts=True):
+            key_last = key.rpartition('.')[-1]
+            settings[key_last] = traj[key]
+            print('Using optional setting \'{0}\'={1}'.format(
+                key_last,
+                traj[key])
+            )
 
     # Run analysis
     res = network_analysis.analyse_single_target(
