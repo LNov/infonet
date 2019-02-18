@@ -8,11 +8,12 @@ from mylib_pypet import print_leaves
 # Choose base directory containing trajectory directories
 base_dir = '/project/RDS-FEI-InfoDynFuncStruct-RW/Leo/inference/trajectories/'
 #base_dir = '/home/leo/Projects/inference/trajectories/'
-#base_dir = 'C:\\DATA\\Google Drive\\University\\USyd\\Projects\\Information network inference\\trajectories\\'
+#base_dir = 'C:\\DATA\\Google Drive\\Materiale progetti in corso\\USyd\\Information network inference\\trajectories\\'
 traj_dir_names = [
-    '2018_08_24_00h00m07s_KSG_on_AR_k32_alpha005_10nodes',
-    '2018_08_26_22h20m11s_KSG_on_AR_k32_alpha005_40nodes',
-    '2018_08_24_14h51m38s_KSG_on_AR_k32_alpha005_70_100nodes'
+    '2019_02_01_17h20m29s_KSG_on_CLM_alpha0001_10_and_40nodes_3000samples',
+    '2018_11_26_21h23m03s_KSG_on_CLM_alpha0001_70_and_100nodes_3000samples',
+    '2018_11_23_21h27m03s_KSG_on_CLM_alpha005_10_and_40nodes_3000samples_rep0-8',
+    '2018_11_23_20h48m38s_KSG_on_CLM_alpha005_70_and_100nodes_3000samples_rep0-8'
 ]
 traj_filename = 'traj.hdf5'
 

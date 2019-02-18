@@ -245,7 +245,7 @@ def generate_coupling(coupling, adjacency_matrix):
         # Read number of nodes
         nodes_n = len(adjacency_matrix)
         # Initialise coupling matrix as a copy of the adjacency matrix
-        coupling_matrix = adjacency_matrix.copy()
+        coupling_matrix = np.asarray(adjacency_matrix.copy(), dtype=float)
         # Temporarily remove self-loops
         np.fill_diagonal(coupling_matrix, 0)
         # Count links (excluding self-loops)
@@ -255,20 +255,10 @@ def generate_coupling(coupling, adjacency_matrix):
         distribution = coupling.weight_distribution
 
         if distribution == 'deterministic':
-            # Ensure that the conditions for stationarity are met, see reference:
-            # Fatihcan M. Atay, Özkan Karabacak, "Stability of Coupled Map Networks with Delays",
-            # SIAM Journal on Applied Dynamical Systems, Vol. 5, No. 3. (2006), pp. 508-527
             c = coupling.total_cross_coupling
-            b = coupling.self_coupling + coupling.total_cross_coupling
-            # first condition: |b|<1
-            if np.abs(b) >= 1:
-                raise ValueError('ERROR: absolute value of (self coupling + total cross coupling >= 1')
-            # second condition: |b-2c|<1
-            if np.abs(b - 2 * c) >= 1:
-                raise ValueError('ERROR: absolute value of (self coupling - total cross coupling) >= 1')
             # Generate weights and normalise to total cross-coupling
             for node_id in range(0, nodes_n):
-                column = coupling_matrix[:, node_id]
+                column = coupling_matrix[:, node_id].copy()
                 weights_sum = column.sum()
                 if weights_sum > 0:
                     coupling_matrix[:, node_id] = c * column / weights_sum
@@ -411,7 +401,7 @@ def run_dynamics(dynamics, coefficient_matrices):
             # VAR process is also stationary.
             is_stable = max(np.abs(np.linalg.eigvals(var_reduced_form))) < 1
             if not is_stable:
-                RuntimeError('VAR process is not stable and may be nonstationary.')
+                RuntimeError('The VAR process is not stable and may be nonstationary.')
 
             # Initialise time series matrix
             # The 3 dimensions represent (processes, samples, replications)
@@ -600,58 +590,58 @@ def main():
     # Read number of nodes
     nodes_n = traj.par.topology.initial.nodes_n
 
-    ## Generate initial network
-    #G = generate_network(traj.par.topology.initial)
-    ## Get adjacency matrix
-    #adjacency_matrix = np.array(nx.to_numpy_matrix(
-    #    G,
-    #    nodelist=np.array(range(0, traj.par.topology.initial.nodes_n)),
-    #    dtype=int
-    #))
-    ## Add self-loops
-    #np.fill_diagonal(adjacency_matrix, 1)
-#
-    ## Generate initial node coupling
-    #coupling_matrix = generate_coupling(
-    #    traj.par.node_coupling.initial,
-    #    adjacency_matrix
-    #)
-#
-    ## Generate delay
-    #delay_matrices = generate_delay(traj.par.delay.initial, adjacency_matrix)
-#
-    ## Generate coefficient matrices
-    #coefficient_matrices = np.transpose(delay_matrices * coupling_matrix, (0, 2, 1))
-#
-    ## Run dynamics
-    #time_series = run_dynamics(
-    #    traj.par.node_dynamics,
-    #    coefficient_matrices
-    #)
+    # Generate initial network
+    G = generate_network(traj.par.topology.initial)
+    # Get adjacency matrix
+    adjacency_matrix = np.array(nx.to_numpy_matrix(
+        G,
+        nodelist=np.array(range(0, traj.par.topology.initial.nodes_n)),
+        dtype=int
+    ))
+    # Add self-loops
+    np.fill_diagonal(adjacency_matrix, 1)
 
-    #load data
-    samples_n = traj.par.node_dynamics.samples_n
-    subject_label = traj.par.subject_label
-    print('analysing subject: {}'.format(subject_label))
-    mat = spio.loadmat(
-        '/project/RDS-FEI-InfoDynFuncStruct-RW/Leo/inference/ASD/patients/' + subject_label + '_eyesclosed_array.mat',
-        squeeze_me=True
+    # Generate initial node coupling
+    coupling_matrix = generate_coupling(
+        traj.par.node_coupling.initial,
+        adjacency_matrix
     )
-    time_series = mat["series_array"][-samples_n:]
+
+    # Generate delay
+    delay_matrices = generate_delay(traj.par.delay.initial, adjacency_matrix)
+
+    # Generate coefficient matrices
+    coefficient_matrices = np.transpose(delay_matrices * coupling_matrix, (0, 2, 1))
+
+    # Run dynamics
+    time_series = run_dynamics(
+        traj.par.node_dynamics,
+        coefficient_matrices
+    )
+
+#    #load data
+#    #samples_n = traj.par.node_dynamics.samples_n
+#    subject_label = traj.par.subject_label
+#    print('analysing subject: {}'.format(subject_label))
+#    mat = spio.loadmat(
+#        '/project/RDS-FEI-InfoDynFuncStruct-RW/Leo/inference/ASD/patients/' + subject_label + '_eyesclosed_array.mat',
+#        squeeze_me=True
+#    )
+#    time_series = mat["series_array"]#[:, :, 1:101]
 
     # Save objects to disk
-    #adjacency_matrix.to_csv(os.path.join(traj_dir, '.'.join([traj.v_crun, 'topology.initial.adjacency_matrix', 'csv'])))
-    #np.save(os.path.join(traj_dir, '.'.join([traj.v_crun, 'topology.initial.adjacency_matrix', 'npy'])), adjacency_matrix)
-    #coupling_matrix.to_csv(os.path.join(traj_dir, '.'.join([traj.v_crun, 'node_coupling.initial.coupling_matrix', 'csv'])))
-    #delay_matrix.to_csv(os.path.join(traj_dir, '.'.join([traj.v_crun, 'delay.initial.delay_matrix', 'csv'])))
+    np.save(os.path.join(traj_dir, '.'.join([traj.v_crun, 'topology.initial.adjacency_matrix', 'npy'])), adjacency_matrix)
+    np.save(os.path.join(traj_dir, '.'.join([traj.v_crun, 'node_coupling.initial.coupling_matrix', 'npy'])), coupling_matrix)
+    np.save(os.path.join(traj_dir, '.'.join([traj.v_crun, 'node_coupling.initial.coefficient_matrices', 'npy'])), coefficient_matrices)
+    np.save(os.path.join(traj_dir, '.'.join([traj.v_crun, 'delay.initial.delay_matrices', 'npy'])), delay_matrices)
     np.save(os.path.join(traj_dir, '.'.join([traj.v_crun, 'node_dynamics.time_series', 'npy'])), time_series)
 
     # Path to PBS script
     job_script_path = os.path.join(traj_dir, 'run_python_script.pbs')
 
     # Run job array
-    job_walltime_hours = 2
-    job_walltime_minutes = 0
+    job_walltime_hours = 1
+    job_walltime_minutes = 30
     job_settings = {
         'N': 'run{0}'.format(run_i),
         'J': '{0}-{1}'.format(0, nodes_n - 1),

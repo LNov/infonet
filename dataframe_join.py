@@ -9,12 +9,12 @@ fdr = False
 
 # Choose directories containing DataFrames to be merged
 traj_dir_list = [
-    os.path.join('trajectories', 'logistic_100samples_and_1000samples'),
-    os.path.join('trajectories', 'logistic_10000samples')
+    os.path.join('../trajectories', 'postprocessing_df_concatenate2019_02_18_11h39m30s'),
+    os.path.join('../trajectories', 'KSG_on_CLM_all_indegree3')
 ]
 
 # Create output folder for the new analysis
-output_dir = os.path.join('trajectories', 'postprocessing_df_concatenate' + datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss"), '')
+output_dir = os.path.join('../trajectories', 'postprocessing_df_concatenate' + datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss"), '')
 os.makedirs(output_dir)
 time.sleep(5)
 

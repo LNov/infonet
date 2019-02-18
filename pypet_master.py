@@ -251,7 +251,7 @@ def generate_coupling(coupling, adjacency_matrix):
         # Read number of nodes
         nodes_n = len(adjacency_matrix)
         # Initialise coupling matrix as a copy of the adjacency matrix
-        coupling_matrix = adjacency_matrix.copy()
+        coupling_matrix = np.asarray(adjacency_matrix.copy(), dtype=float)
         # Temporarily remove self-loops
         np.fill_diagonal(coupling_matrix, 0)
         # Count links (excluding self-loops)
@@ -261,23 +261,12 @@ def generate_coupling(coupling, adjacency_matrix):
         distribution = coupling.weight_distribution
 
         if distribution == 'deterministic':
-            # Ensure that the conditions for stationarity are met, see reference:
-            # Fatihcan M. Atay, Özkan Karabacak, "Stability of Coupled Map Networks with Delays",
-            # SIAM Journal on Applied Dynamical Systems, Vol. 5, No. 3. (2006), pp. 508-527
-            c = coupling.total_cross_coupling
-            b = coupling.self_coupling + coupling.total_cross_coupling
-            # first condition: |b|<1
-            if np.abs(b) >= 1:
-                raise ValueError('ERROR: absolute value of (self coupling + total cross coupling >= 1')
-            # second condition: |b-2c|<1
-            if np.abs(b - 2 * c) >= 1:
-                raise ValueError('ERROR: absolute value of (self coupling - total cross coupling) >= 1')
             # Generate weights and normalise to total cross-coupling
             for node_id in range(0, nodes_n):
                 column = coupling_matrix[:, node_id]
                 weights_sum = column.sum()
                 if weights_sum > 0:
-                    coupling_matrix[:, node_id] = c * column / weights_sum
+                    coupling_matrix[:, node_id] = coupling.total_cross_coupling * column / weights_sum
             # Set weight of self-loops
             np.fill_diagonal(coupling_matrix, coupling.self_coupling)
             return coupling_matrix
@@ -290,7 +279,7 @@ def generate_coupling(coupling, adjacency_matrix):
                 column = coupling_matrix[:, node_id]
                 weights_sum = column.sum()
                 if weights_sum > 0:
-                    coupling_matrix[:, node_id] = c * column / weights_sum
+                    coupling_matrix[:, node_id] = coupling.total_cross_coupling * column / weights_sum
             # Set weight of self-loops
             np.fill_diagonal(coupling_matrix, coupling.self_coupling)
             return coupling_matrix
@@ -618,6 +607,21 @@ def perform_network_inference(network_inference, time_series, parallel_target_an
                 'alpha_fdr': network_inference.p_value
             }
 
+            # # Add optional settings
+            # optional_settings_keys = {
+            #     'config.debug',
+            #     'config.max_mem_frac'
+            # }
+
+            # for key in optional_settings_keys:
+            #     if traj.f_contains(key, shortcuts=True):
+            #         key_last = key.rpartition('.')[-1]
+            #         settings[key_last] = traj[key]
+            #         print('Using optional setting \'{0}\'={1}'.format(
+            #             key_last,
+            #             traj[key])
+            #         )
+
             if parallel_target_analysis:
                 # Use SCOOP to create a generator of map results, each
                 # correspinding to one map ieration
@@ -668,44 +672,45 @@ def information_network_inference(traj):
     start_perf_counter = time.perf_counter()
     start_process_time = time.process_time()
 
-    ## Generate initial network
-    #G = generate_network(traj.par.topology.initial)
-    ## Get adjacency matrix
-    #adjacency_matrix = np.array(nx.to_numpy_matrix(
-    #    G,
-    #    nodelist=np.array(range(0, traj.par.topology.initial.nodes_n)),
-    #    dtype=int
-    #))
-    ## Add self-loops
-    #np.fill_diagonal(adjacency_matrix, 1)
-#
-    ## Generate initial node coupling
-    #coupling_matrix = generate_coupling(
-    #    traj.par.node_coupling.initial,
-    #    adjacency_matrix
-    #)
-#
-    ## Generate delay
-    #delay_matrices = generate_delay(traj.par.delay.initial, adjacency_matrix)
-#
-    ## Generate coefficient matrices
-    #coefficient_matrices = np.transpose(delay_matrices * coupling_matrix, (0, 2, 1))
-#
-    ## Run dynamics
-    #time_series = run_dynamics(
-    #    traj.par.node_dynamics,
-    #    coefficient_matrices
-    #)
+    # Generate initial network
+    G = generate_network(traj.par.topology.initial)
+    # Get adjacency matrix
+    adjacency_matrix = np.array(nx.to_numpy_matrix(
+        G,
+        nodelist=np.array(range(0, traj.par.topology.initial.nodes_n)),
+        dtype=int
+    ))
+    # Add self-loops
+    np.fill_diagonal(adjacency_matrix, 1)
 
-    #load data
-    samples_n = traj.node_dynamics.samples_n
-    subject_label = traj.subject_label
-    print('analysing subject: {}'.format(subject_label))
-    mat = spio.loadmat(
-        'C:\\DATA\\Google Drive\\Materiale progetti in corso\\USyd\\Information network inference\\ASD\\patients\\' + subject_label + '_eyesclosed_array.mat',
-        squeeze_me=True
+    # Generate initial node coupling
+    coupling_matrix = generate_coupling(
+        traj.par.node_coupling.initial,
+        adjacency_matrix
     )
-    time_series = mat["series_array"][-samples_n:]
+
+    # Generate delay
+    delay_matrices = generate_delay(traj.par.delay.initial, adjacency_matrix)
+
+    # Generate coefficient matrices
+    coefficient_matrices = np.transpose(delay_matrices * coupling_matrix, (0, 2, 1))
+
+    # Run dynamics
+    time_series = run_dynamics(
+        traj.par.node_dynamics,
+        coefficient_matrices
+    )
+
+#    # Load ASD data
+#    samples_n = traj.node_dynamics.samples_n
+#    subject_label = traj.subject_label
+#    print('analysing subject: {}'.format(subject_label))
+#    mat = spio.loadmat(
+#        #'C:\\DATA\\Google Drive\\Materiale progetti in corso\\USyd\\Information network inference\\ASD\\patients\\' + subject_label + '_eyesclosed_array.mat',
+#        '/home/leo/Projects/inference/ASD/patients/' + subject_label + '_eyesclosed_array.mat',
+#        squeeze_me=True
+#    )
+#    time_series = mat["series_array"]#[:, -samples_n:, :]
 
     # Perform Information Network Inference
     network_inference_result = perform_network_inference(
@@ -842,6 +847,8 @@ def main():
     # -------------------------------------------------------------------
     # Add config parameters (those that DO NOT influence the final result of the experiment)
     traj.f_add_config('parallel_target_analysis', True, comment='Analyse targets in parallel')
+    #traj.f_add_config('debug', False, comment='Activate debug mode')
+    #traj.f_add_config('max_mem_frac', 0.7, comment='Fraction of global GPU memory to use')
 
     # -------------------------------------------------------------------
     # Add "proper" parameters (those that DO influence the final result of the experiment)
@@ -850,25 +857,24 @@ def main():
     # Parameters characterizing the network inference algorithm
     traj.f_add_parameter('network_inference.algorithm', 'mTE_greedy')
     traj.parameters.f_get('network_inference.algorithm').v_comment = network_inference_algorithms['Description'].get(traj.parameters['network_inference.algorithm'])
-    traj.f_add_parameter('network_inference.min_lag_sources', 5, comment='')
-    traj.f_add_parameter('network_inference.max_lag_sources', 40, comment='')
-    traj.f_add_parameter('network_inference.tau_sources', 5, comment='')
-    traj.f_add_parameter('network_inference.max_lag_target', 40, comment='')
-    traj.f_add_parameter('network_inference.tau_target', 5, comment='')
-    #traj.f_add_parameter('network_inference.cmi_estimator', 'JidtGaussianCMI', comment='Conditional Mutual Information estimator')
-    traj.f_add_parameter('network_inference.cmi_estimator', 'JidtKraskovCMI', comment='Conditional Mutual Information estimator')
+    traj.f_add_parameter('network_inference.min_lag_sources', 1, comment='')
+    traj.f_add_parameter('network_inference.max_lag_sources', 5, comment='')
+    traj.f_add_parameter('network_inference.tau_sources', 1, comment='')
+    traj.f_add_parameter('network_inference.max_lag_target', 5, comment='')
+    traj.f_add_parameter('network_inference.tau_target', 1, comment='')
+    traj.f_add_parameter('network_inference.cmi_estimator', 'JidtGaussianCMI', comment='Conditional Mutual Information estimator')
+    #traj.f_add_parameter('network_inference.cmi_estimator', 'JidtKraskovCMI', comment='Conditional Mutual Information estimator')
     #traj.f_add_parameter('network_inference.cmi_estimator', 'OpenCLKraskovCMI', comment='Conditional Mutual Information estimator')
     traj.f_add_parameter('network_inference.permute_in_time', False, comment='')
     traj.f_add_parameter('network_inference.jidt_threads_n', 1, comment='Number of threads used by JIDT estimator (default=USE_ALL)')
     traj.f_add_parameter('network_inference.n_perm_max_stat', 200, comment='')
     traj.f_add_parameter('network_inference.n_perm_min_stat', 200, comment='')
-    traj.f_add_parameter('network_inference.n_perm_omnibus', 200, comment='')
+    traj.f_add_parameter('network_inference.n_perm_omnibus', 500, comment='')
     traj.f_add_parameter('network_inference.n_perm_max_seq', 200, comment='')
     traj.f_add_parameter('network_inference.fdr_correction', True, comment='')
-    traj.f_add_parameter('network_inference.z_standardise', False, comment='')
+    traj.f_add_parameter('network_inference.z_standardise', True, comment='')
     traj.f_add_parameter('network_inference.kraskov_k', 4, comment='')
     traj.f_add_parameter('network_inference.p_value', 0.05, comment='critical alpha level for statistical significance testing')
-
     # traj.f_add_parameter('network_inference.alpha_max_stats', traj.parameters['network_inference.p_value'], comment='')
     # traj.f_add_parameter('network_inference.alpha_min_stats', traj.parameters['network_inference.p_value'], comment='')
     # traj.f_add_parameter('network_inference.alpha_omnibus', traj.parameters['network_inference.p_value'], comment='')
@@ -876,50 +882,50 @@ def main():
     # traj.f_add_parameter('network_inference.alpha_fdr', traj.parameters['network_inference.p_value'], comment='')
 
     # -------------------------------------------------------------------
-#    # Parameters characterizing the initial topology of the network
-#    traj.f_add_parameter('topology.initial.model', 'ER_n_in')
-#    traj.parameters.f_get('topology.initial.model').v_comment = topology_models['Description'].get(traj.parameters['topology.initial.model'])
-#    traj.f_add_parameter('topology.initial.nodes_n', 5, comment='Number of nodes')
-#    traj.f_add_parameter('topology.initial.in_degree_expected', 3, comment='Expected in-degree')
-#
-#    # -------------------------------------------------------------------
-#    # Parameters characterizing the evolution of the topology
-#    traj.f_add_parameter('topology.evolution.model', 'static')
-#    traj.parameters.f_get('topology.evolution.model').v_comment = topology_evolution_models['Description'].get(traj.parameters['topology.evolution.model'])
-#
-#    # -------------------------------------------------------------------
-#    # Parameters characterizing the coupling between the nodes
-#    traj.f_add_parameter('node_coupling.initial.model', 'linear', comment='Linear coupling model: the input to each target node is the weighted sum of the outputs of its source nodes')
-#    traj.f_add_parameter('node_coupling.initial.weight_distribution', 'deterministic')
-#    traj.parameters.f_get('node_coupling.initial.weight_distribution').v_comment = weight_distributions['Description'].get(traj.parameters['node_coupling.initial.weight_distribution'])
-#    traj.f_add_parameter('node_coupling.initial.self_coupling', 0.5, comment='The self-coupling is the weight of the self-loop')
-#    traj.f_add_parameter('node_coupling.initial.total_cross_coupling', 0.35, comment='The total cross-coupling is the sum of all incoming weights from the sources only')
-#
-#    # -------------------------------------------------------------------
-#    # Parameters characterizing the delay
-#    traj.f_add_parameter('delay.initial.distribution', 'uniform')
-#    traj.parameters.f_get('delay.initial.distribution').v_comment = delay_distributions['Description'].get(traj.parameters['delay.initial.distribution'])
-#    traj.f_add_parameter('delay.initial.delay_links_n_max', 2, comment='Maximum number of delay links')
-#    traj.f_add_parameter('delay.initial.delay_min', 1, comment='')
-#    traj.f_add_parameter('delay.initial.delay_max', 5, comment='')
-#    traj.f_add_parameter('delay.initial.delay_self', 1, comment='')
-#
+    # Parameters characterizing the initial topology of the network
+    traj.f_add_parameter('topology.initial.model', 'ER_n_in')
+    traj.parameters.f_get('topology.initial.model').v_comment = topology_models['Description'].get(traj.parameters['topology.initial.model'])
+    traj.f_add_parameter('topology.initial.nodes_n', 5, comment='Number of nodes')
+    traj.f_add_parameter('topology.initial.in_degree_expected', 3, comment='Expected in-degree')
+
+    # -------------------------------------------------------------------
+    # Parameters characterizing the evolution of the topology
+    traj.f_add_parameter('topology.evolution.model', 'static')
+    traj.parameters.f_get('topology.evolution.model').v_comment = topology_evolution_models['Description'].get(traj.parameters['topology.evolution.model'])
+
+    # -------------------------------------------------------------------
+    # Parameters characterizing the coupling between the nodes
+    traj.f_add_parameter('node_coupling.initial.model', 'linear', comment='Linear coupling model: the input to each target node is the weighted sum of the outputs of its source nodes')
+    traj.f_add_parameter('node_coupling.initial.weight_distribution', 'deterministic')
+    traj.parameters.f_get('node_coupling.initial.weight_distribution').v_comment = weight_distributions['Description'].get(traj.parameters['node_coupling.initial.weight_distribution'])
+    traj.f_add_parameter('node_coupling.initial.self_coupling', 0.5, comment='The self-coupling is the weight of the self-loop')
+    traj.f_add_parameter('node_coupling.initial.total_cross_coupling', 0.4, comment='The total cross-coupling is the sum of all incoming weights from the sources only')
+
+    # -------------------------------------------------------------------
+    # Parameters characterizing the delay
+    traj.f_add_parameter('delay.initial.distribution', 'uniform')
+    traj.parameters.f_get('delay.initial.distribution').v_comment = delay_distributions['Description'].get(traj.parameters['delay.initial.distribution'])
+    traj.f_add_parameter('delay.initial.delay_links_n_max', 1, comment='Maximum number of delay links')
+    traj.f_add_parameter('delay.initial.delay_min', 1, comment='')
+    traj.f_add_parameter('delay.initial.delay_max', 5, comment='')
+    traj.f_add_parameter('delay.initial.delay_self', 1, comment='')
+
     # -------------------------------------------------------------------
     # Parameters characterizing the dynamics of the nodes
-#    traj.f_add_parameter('node_dynamics.model', 'logistic_map')
-#    #traj.f_add_parameter('node_dynamics.model', 'AR_gaussian_discrete')
-#    traj.parameters.f_get('node_dynamics.model').v_comment = node_dynamics_models['Description'].get(traj.parameters['node_dynamics.model'])
+    traj.f_add_parameter('node_dynamics.model', 'logistic_map')
+    #traj.f_add_parameter('node_dynamics.model', 'AR_gaussian_discrete')
+    traj.parameters.f_get('node_dynamics.model').v_comment = node_dynamics_models['Description'].get(traj.parameters['node_dynamics.model'])
     traj.f_add_parameter('node_dynamics.samples_n', 100, comment='Number of samples (observations) to record')
-#    traj.f_add_parameter('node_dynamics.samples_transient_n', 1000 * traj.topology.initial.nodes_n, comment='Number of initial samples (observations) to skip to leave out the transient')
-#    traj.f_add_parameter('node_dynamics.replications', 10, comment='Number of replications (trials) to record')
-#    traj.f_add_parameter('node_dynamics.noise_std', 0.1, comment='Standard deviation of Gaussian noise')
+    traj.f_add_parameter('node_dynamics.samples_transient_n', 1000 * traj.topology.initial.nodes_n, comment='Number of initial samples (observations) to skip to leave out the transient')
+    traj.f_add_parameter('node_dynamics.replications', 1, comment='Number of replications (trials) to record')
+    traj.f_add_parameter('node_dynamics.noise_std', 0.1, comment='Standard deviation of Gaussian noise')
 
     # -------------------------------------------------------------------
-#    # Parameters characterizing the repetitions of the same run
-#    traj.f_add_parameter('repetition_i', 0, comment='Index of the current repetition') # Normally starts from 0
+    # Parameters characterizing the repetitions of the same run
+    traj.f_add_parameter('repetition_i', 0, comment='Index of the current repetition') # Normally starts from 0
 
     # Parameters characterizing the repetitions of the same run
-    traj.f_add_parameter('subject_label', 'A01', comment='Labels identifying the subjects')
+#    traj.f_add_parameter('subject_label', 'A01', comment='Labels identifying the subjects')
 
     # -------------------------------------------------------------------
     # Define parameter combinations to explore (a trajectory in
@@ -927,18 +933,26 @@ def main():
     # The second argument, the tuple, specifies the order of the cartesian product,
     # The variable on the right most side changes fastest and defines the
     # 'inner for-loop' of the cartesian product
-#    explore_dict = cartesian_product(
-#        {
-#            'repetition_i': np.arange(0, 2, 1).tolist(),
-#            'topology.initial.nodes_n': np.arange(5, 5+1, 5).tolist(),
-#            'node_dynamics.samples_n': (10 ** np.arange(1, 1+0.1, 1)).round().astype(int).tolist(),
-#            'network_inference.p_value': np.array([0.05]).tolist()
-#        },
-#        ('repetition_i', 'topology.initial.nodes_n', 'node_dynamics.samples_n', 'network_inference.p_value')
-#    )
-    explore_dict={
-        'subject_label': ['A01']
-    }
+    explore_dict = cartesian_product(
+        {
+            'repetition_i': np.arange(0, 10, 1).tolist(),
+            'topology.initial.nodes_n': np.arange(10, 100+1, 30).tolist(),
+            'node_dynamics.samples_n': (10 ** np.arange(4, 4+0.1, 1)).round().astype(int).tolist(),
+            'network_inference.p_value': np.array([0.05]).tolist(),
+            #'node_coupling.initial.self_coupling': np.array([0.2]).tolist(),
+            #'node_coupling.initial.total_cross_coupling': np.array([0.85]).tolist()
+        },
+        ('repetition_i',
+         'topology.initial.nodes_n',
+         'node_dynamics.samples_n',
+         'network_inference.p_value'
+         #'node_coupling.initial.self_coupling',
+         #'node_coupling.initial.total_cross_coupling'
+        )
+    )
+#    explore_dict={
+#        'subject_label': ['A02']
+#    }
     print(explore_dict)
     traj.f_explore(explore_dict)
 

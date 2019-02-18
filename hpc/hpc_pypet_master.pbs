@@ -2,7 +2,7 @@
 #PBS -P InfoDynFuncStruct
 #PBS -N inference
 #PBS -l select=1:ncpus=1:mem=1GB
-#PBS -l walltime=00:01:00
+#PBS -l walltime=00:02:00
 #PBS -M lnov6504@uni.sydney.edu.au
 #PBS -m abe
 #PBS -q small-express

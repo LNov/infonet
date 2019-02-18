@@ -79,6 +79,7 @@ if algorithm == 'mTE_greedy':
     network_analysis = MultivariateTE()
 
     settings = {
+        #'add_conditionals': [(35, 3), (26, 1), (17, 5), (25, 4)],
         'min_lag_sources': network_inference.min_lag_sources,
         'max_lag_sources': network_inference.max_lag_sources,
         'tau_sources': network_inference.tau_sources,
@@ -98,7 +99,6 @@ if algorithm == 'mTE_greedy':
         'alpha_omnibus': network_inference.p_value,
         'alpha_max_seq': network_inference.p_value,
         'alpha_fdr': network_inference.p_value
-        # 'add_conditionals': [(33, 4), (21, 2), (20, 3), (4, 2), (13, 2), (33, 1)]
     }
 
     # Add optional settings

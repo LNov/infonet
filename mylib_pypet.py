@@ -11,14 +11,25 @@ def print_leaves(traj, node_name):
             if node.f_has_leaves():
                 for leave in node.f_iter_leaves():
                     if leave.f_has_range():
-                        print(leave.v_full_name, np.unique(leave.f_get_range()), sep=' : ')
+                        print(
+                            leave.v_full_name,
+                            np.unique(leave.f_get_range()),
+                            sep=' : '
+                            )
                     else:
-                        print(leave.v_full_name, leave.f_val_to_str(), sep=' : ')
+                        print(
+                            leave.v_full_name,
+                            leave.f_val_to_str(),
+                            sep=' : '
+                            )
             else:
                 print('node \'{}\' has no leaves'.format(node_name))
         else:
             if node.f_has_range():
-                print(node.v_full_name, np.unique(node.f_get_range()), sep=' : ')
+                print(
+                    node.v_full_name,
+                    np.unique(node.f_get_range()),
+                    sep=' : '
+                    )
             else:
                 print(node.v_full_name, node.f_val_to_str(), sep=' : ')
-
