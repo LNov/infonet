@@ -83,9 +83,7 @@ def assemble(traj):
 base_dir = '/project/RDS-FEI-InfoDynFuncStruct-RW/Leo/inference/trajectories/'
 
 traj_dir_names = [
-    '2018_08_24_00h00m07s_KSG_on_AR_k32_alpha005_10nodes',
-    '2018_08_26_22h20m11s_KSG_on_AR_k32_alpha005_40nodes',
-    '2018_08_24_14h51m38s_KSG_on_AR_k32_alpha005_70_100nodes'
+    '2019_03_09_21h46m54s_KSG_on_CLM_1000samples_alpha001_run1'
 ]
 traj_filename = 'traj.hdf5'
 

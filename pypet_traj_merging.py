@@ -5,13 +5,12 @@ from pypet import Trajectory
 from mylib_pypet import print_leaves
 
 # Choose base directory containing trajectory directories
-base_dir = '/project/RDS-FEI-InfoDynFuncStruct-RW/Leo/inference/trajectories/'
+#base_dir = '/project/RDS-FEI-InfoDynFuncStruct-RW/Leo/inference/trajectories/'
 # base_dir = '/home/leo/Projects/inference/trajectories/'
-# base_dir = 'C:\\DATA\\Google Drive\\Materiale progetti in corso\\USyd\\Information network inference\\trajectories\\'
+base_dir = 'C:\\DATA\\Google Drive\\Materiale progetti in corso\\USyd\\Information network inference\\trajectories\\'
 traj_dir_names = [
-    '2019_03_06_12h43m37s_GC_on_AR_100samples',
-    '2019_03_06_14h29m41s_GC_on_AR_1000samples',
-    '2019_03_06_19h04m58s_GC_on_AR_10000samples',
+    'GC_on_AR_empty_new_10000samples',
+    'GC_on_AR_empty_new_10000samples_100_300rep',
 ]
 traj_filename = 'traj.hdf5'
 

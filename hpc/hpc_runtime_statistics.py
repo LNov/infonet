@@ -11,6 +11,37 @@ base_dir = 'C:\\DATA\\Google Drive\\Materiale progetti in corso\\USyd\\Informati
 
 # Choose trajectory folders
 traj_dir_names = [
+    '2019_03_21_08h06m59s'
+
+    #'2017_08_31_23h27m22s_logistic_10nodes_1000samples_rep0123',
+    #'2017_09_01_00h33m23s_logistic_10nodes_1000samples_rep456789'
+
+    #'2017_08_26_22h50m40s_logistic_40nodes_1000samples_rep01',
+    #'2017_09_01_01h39m47s_logistic_40nodes_1000samples_rep23',
+    #'2017_09_01_09h22m51s_logistic_40nodes_1000samples_rep45',
+    #'2017_09_01_17h15m32s_logistic_40nodes_1000samples_rep67',
+    #'2017_09_01_23h17m23s_logistic_40nodes_1000samples_rep89'
+
+    #'2017_08_25_20h48m36s_logistic_70nodes_1000samples_0001_rep01',
+    #'2017_08_30_17h06m39s_logistic_70nodes_1000samples_rep2',
+    #'2017_08_30_17h23m32s_logistic_70nodes_1000samples_rep3',
+    #'2017_08_30_23h28m10s_logistic_70nodes_1000samples_rep4',
+    #'2017_08_30_23h42m41s_logistic_70nodes_1000samples_rep5',
+    #'2017_08_31_03h58m11s_logistic_70nodes_1000samples_rep6',
+    #'2017_08_31_05h01m54s_logistic_70nodes_1000samples_rep7',
+    #'2017_09_02_06h23m41s_logistic_70nodes_1000samples_rep8',
+    #'2017_09_02_06h46m09s_logistic_70nodes_1000samples_rep9'
+
+    #'2017_08_25_04h04m55s_logistic_100nodes_1000samples_0001_rep0',
+    #'2017_08_25_04h28m46s_logistic_100nodes_1000samples_0001_rep1',
+    #'2017_08_27_06h43m56s_logistic_100nodes_1000samples_0001_rep23',
+    #'2017_08_28_02h34m29s_logistic_100nodes_1000samples_0001_rep45',
+    #'2017_08_28_19h42m27s_logistic_100nodes_1000samples_0001_rep67',
+    #'2017_08_29_15h39m09s_logistic_100nodes_1000samples_0001_rep89'
+
+    #'2017_12_23_19h15m28s_logistic_10nodes_10000samples',
+    #'2018_01_09_17h09m42s_logistic_40nodes_10000samples_rep01234',
+    #'2018_01_20_10h10m16s_logistic_40nodes_10000samples_rep56789',
     #'2018_01_23_11h15m34s_logistic_70nodes_10000samples_rep01',
     #'2018_01_29_15h45m48s_logistic_70nodes_10000samples_rep23',
     #'2018_01_31_20h16m54s_logistic_70nodes_10000samples_rep45',
@@ -25,8 +56,7 @@ traj_dir_names = [
     #'2018_03_06_22h57m58s_logistic_100nodes_10000samples_rep6',
     #'2018_03_09_00h25m26s_logistic_100nodes_10000samples_rep7',
     #'2018_03_12_10h35m32s_logistic_100nodes_10000samples_rep8',
-    #'2018_03_21_10h27m54s_logistic_100nodes_10000samples_rep9',
-    '2018_11_30_19h00m44s'
+    #'2018_03_21_10h27m54s_logistic_100nodes_10000samples_rep9'
     ]
 traj_filename = 'traj.hdf5'
 traj_dir_fullpaths = [
@@ -44,8 +74,9 @@ regexes_dict = {
     'exit_status': re.compile(r'Exit Status:\s+(\d+)'),
     'ncpus': re.compile(r'ncpus=(\d+)'),
     'ngpus': re.compile(r'ngpus=(\d+)'),
-    'mem_requested': re.compile(r'Mem requested:\s+(\d.+)GB'),
-    'mem_used': re.compile(r'Mem used:\s+(\d.+)GB'),
+    'mem_requested': re.compile(r'Mem requested:\s+(\d+.\d+)GB'),
+    'mem_used_GB': re.compile(r'Mem used:\s+(\d.+)GB'),
+    'mem_used_MB': re.compile(r'Mem used:\s+(\d.+)MB'),
     'walltime_requested_h': re.compile(
         r'Walltime requested:\s+(\d+):(?:\d+):(?:\d+)(?: +):'),
     'walltime_requested_m': re.compile(
@@ -85,16 +116,23 @@ for traj_dir in traj_dir_fullpaths:
     # upgrade Score from float to integer
     df = df.apply(pd.to_numeric, errors='ignore')
 
+    df['mem_used_GB'].values[np.isnan(df['mem_used_GB'])] = df[
+        'mem_used_MB'].values[np.isnan(df['mem_used_GB'])] / 1000
+
     aggregate_repetitions = df.groupby('name').agg(lambda x: x.tolist())
 
     for index, row in aggregate_repetitions.iterrows():
         print(row.name)
-        print('estimated network size: {0}'.format(len(row['array_id'])))
-        array = np.array(row['runtime'])
-        #print(array.mean())
-        #print(array.std())
-        print('{0:.3f} hours = {1:.2f} minutes = {2:.2f} seconds\n'.format(
-            array.max()/3600,
-            array.max()/60,
-            array.max()
+        print('Estimated network size: {0}'.format(len(row['array_id'])))
+        runtime = np.array(row['runtime'])
+        #print(runtime.mean())
+        #print(runtime.std())
+        print('Max runtime: {0:.3f} hours = {1:.2f} minutes = {2:.2f} seconds'.format(
+            runtime.max()/3600,
+            runtime.max()/60,
+            runtime.max()
             ))
+        mem_used_GB = np.array(row['mem_used_GB'])
+        #print(mem_used_GB.mean())
+        #print(mem_used_GB.std())
+        print('Max memory: {0} GB \n'.format(mem_used_GB.max()))
