@@ -10,6 +10,14 @@ import copyreg
 from subprocess import call
 import argparse
 import scipy.io as spio
+import pickle
+
+
+# Use pickle module to save dictionaries
+def save_obj(obj, file_dir, file_name):
+    with open(os.path.join(file_dir, file_name), 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
 
 # Define parameter options dictionaries
 network_inference_algorithms = pd.DataFrame()
@@ -33,7 +41,6 @@ network_inference_algorithms['Required parameters'] = pd.Series({
         'n_perm_omnibus',
         'n_perm_max_seq',
         'fdr_correction',
-        'z_standardise',
         'p_value'
         #'alpha_max_stats',
         #'alpha_min_stats',
@@ -41,9 +48,26 @@ network_inference_algorithms['Required parameters'] = pd.Series({
         #'alpha_max_seq',
         #'alpha_fdr'
     ),
-     'bivariateTE': (
+    'bTE_greedy': (
         'min_lag_sources',
-        'max_lag_sources'
+        'max_lag_sources',
+        'tau_sources',
+        'max_lag_target',
+        'tau_target',
+        'cmi_estimator',
+        'z_standardise',
+        'permute_in_time',
+        'n_perm_max_stat',
+        'n_perm_min_stat',
+        'n_perm_omnibus',
+        'n_perm_max_seq',
+        'fdr_correction',
+        'p_value'
+        #'alpha_max_stats',
+        #'alpha_min_stats',
+        #'alpha_omnibus',
+        #'alpha_max_seq',
+        #'alpha_fdr'
     ),
     'cross_corr': (
         'min_lag_sources',
@@ -67,7 +91,8 @@ topology_models['Description'] = pd.Series({
 topology_models['Required parameters'] = pd.Series({
     'ER_n_p': ('nodes_n', 'ER_p'),
     'ER_n_m': ('nodes_n', 'ER_m'),
-    'ER_n_in': ('nodes_n', 'in_degree_expected')
+    'ER_n_in': ('nodes_n', 'in_degree_expected'),
+    'WS': ('nodes_n', 'WS_k', 'WS_p')
 })
 
 topology_evolution_models = pd.DataFrame()
@@ -213,6 +238,19 @@ def generate_network(topology):
                 seed=None,
                 directed=True
             )
+        elif model == 'WS':
+            # Read required parameters
+            nodes_n = topology.nodes_n
+            WS_k = topology.WS_k
+            WS_p = topology.WS_p
+            # Generate network
+            return nx.connected_watts_strogatz_graph(
+                nodes_n,
+                WS_k,
+                WS_p,
+                tries=200,
+                seed=None
+            )
         else:
             raise ParameterValue(
                 model,
@@ -259,9 +297,9 @@ def generate_coupling(coupling, adjacency_matrix):
             # Generate weights and normalise to total cross-coupling
             for node_id in range(0, nodes_n):
                 column = coupling_matrix[:, node_id].copy()
-                weights_sum = column.sum()
-                if weights_sum > 0:
-                    coupling_matrix[:, node_id] = c * column / weights_sum
+                weights_sum_abs = np.abs(column.sum())
+                if weights_sum_abs > 0:
+                    coupling_matrix[:, node_id] = c * column / weights_sum_abs
             # Set weight of self-loops
             np.fill_diagonal(coupling_matrix, coupling.self_coupling)
             return coupling_matrix
@@ -272,9 +310,9 @@ def generate_coupling(coupling, adjacency_matrix):
             coupling_matrix[adjacency_matrix > 0] = np.random.rand(links_count)
             for node_id in range(0, nodes_n):
                 column = coupling_matrix[:, node_id]
-                weights_sum = column.sum()
-                if weights_sum > 0:
-                    coupling_matrix[:, node_id] = c * column / weights_sum
+                weights_sum_abs = np.abs(column.sum())
+                if weights_sum_abs > 0:
+                    coupling_matrix[:, node_id] = c * column / weights_sum_abs
             # Set weight of self-loops
             np.fill_diagonal(coupling_matrix, coupling.self_coupling)
             return coupling_matrix
@@ -619,6 +657,31 @@ def main():
         coefficient_matrices
     )
 
+    # Create settings dictionary
+    print('network_inference.p_value = {0}\n'.format(
+        traj.par.network_inference.p_value))
+    settings = {
+        'min_lag_sources': traj.par.network_inference.min_lag_sources,
+        'max_lag_sources': traj.par.network_inference.max_lag_sources,
+        'tau_sources': traj.par.network_inference.tau_sources,
+        'max_lag_target': traj.par.network_inference.max_lag_target,
+        'tau_target': traj.par.network_inference.tau_target,
+        'cmi_estimator':  traj.par.network_inference.cmi_estimator,
+        'kraskov_k': traj.par.network_inference.kraskov_k,
+        'num_threads': traj.par.network_inference.jidt_threads_n,
+        'permute_in_time': traj.par.network_inference.permute_in_time,
+        'n_perm_max_stat': traj.par.network_inference.n_perm_max_stat,
+        'n_perm_min_stat': traj.par.network_inference.n_perm_min_stat,
+        'n_perm_omnibus': traj.par.network_inference.n_perm_omnibus,
+        'n_perm_max_seq': traj.par.network_inference.n_perm_max_seq,
+        'fdr_correction': traj.par.network_inference.fdr_correction,
+        'alpha_max_stat': traj.par.network_inference.p_value,
+        'alpha_min_stat': traj.par.network_inference.p_value,
+        'alpha_omnibus': traj.par.network_inference.p_value,
+        'alpha_max_seq': traj.par.network_inference.p_value,
+        'alpha_fdr': traj.par.network_inference.p_value
+    }
+
 #    #load data
 #    #samples_n = traj.par.node_dynamics.samples_n
 #    subject_label = traj.par.subject_label
@@ -635,13 +698,14 @@ def main():
     np.save(os.path.join(traj_dir, '.'.join([traj.v_crun, 'node_coupling.initial.coefficient_matrices', 'npy'])), coefficient_matrices)
     np.save(os.path.join(traj_dir, '.'.join([traj.v_crun, 'delay.initial.delay_matrices', 'npy'])), delay_matrices)
     np.save(os.path.join(traj_dir, '.'.join([traj.v_crun, 'node_dynamics.time_series', 'npy'])), time_series)
+    save_obj(settings, traj_dir, '.'.join([traj.v_crun, 'settings.pkl']))
 
     # Path to PBS script
     job_script_path = os.path.join(traj_dir, 'run_python_script.pbs')
 
     # Run job array
-    job_walltime_hours = 1
-    job_walltime_minutes = 30
+    job_walltime_hours = 6#1 + int(np.ceil((nodes_n + 20) / 30))
+    job_walltime_minutes = 0
     job_settings = {
         'N': 'run{0}'.format(run_i),
         'J': '{0}-{1}'.format(0, nodes_n - 1),
