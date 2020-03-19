@@ -2,10 +2,19 @@ import sys
 import os
 import numpy as np
 from pypet import Trajectory
+from idtxl.bivariate_mi import BivariateMI
+from idtxl.bivariate_te import BivariateTE
+from idtxl.multivariate_mi import MultivariateMI
 from idtxl.multivariate_te import MultivariateTE
 from idtxl.data import Data
 import pickle
 # import time
+
+
+# Use pickle module to load dictionaries
+def load_obj(path):
+    with open(path, 'rb') as f:
+        return pickle.load(f)
 
 
 # Use pickle module to save dictionaries
@@ -25,7 +34,6 @@ print('traj_dir= {0}'.format(traj_dir))
 print('traj_filename= {0}'.format(traj_filename))
 print('file_prefix= {0}'.format(file_prefix))
 
-# try:
 # Load the trajectory from the hdf5 file
 traj = Trajectory()
 traj.f_load(
@@ -36,20 +44,15 @@ traj.f_load(
     load_parameters=2,
     load_derived_parameters=2,
     load_results=2,
-    load_other_data=2
-)
+    load_other_data=2)
 
 # Load time series
-time_series = np.load(
-    os.path.join(
-        traj_dir, '.'.join([file_prefix, 'node_dynamics.time_series.npy'])
-    )
-)
+time_series = np.load(os.path.join(
+        traj_dir, '.'.join([file_prefix, 'node_dynamics.time_series.npy'])))
 
-# except:
-#    raise
-
-# else:
+# Load settings dictionary
+settings = load_obj(os.path.join(
+        traj_dir, '.'.join([file_prefix, 'settings.pkl'])))
 
 network_inference = traj.parameters.network_inference
 
@@ -61,45 +64,38 @@ if network_inference.z_standardise:
     if not can_be_z_standardised:
         print('Time series can not be z-standardised')
 
+if len(time_series.shape) == 2:
+    dim_order = 'ps'
+else:
+    dim_order = 'psr'
+
 # initialise an empty data object
 dat = Data()
 
 # Load time series
 dat = Data(
     time_series,
-    dim_order='psr',
+    dim_order=dim_order,
     normalise=(network_inference.z_standardise & can_be_z_standardised)
 )
 
 network_inference = traj.parameters.network_inference
 
-algorithm = network_inference.algorithm
-if algorithm == 'mTE_greedy':
-    # Set analysis options
-    network_analysis = MultivariateTE()
+print('network_inference.p_value = {0}\n'.format(network_inference.p_value))
 
-    settings = {
-        #'add_conditionals': [(35, 3), (26, 1), (17, 5), (25, 4)],
-        'min_lag_sources': network_inference.min_lag_sources,
-        'max_lag_sources': network_inference.max_lag_sources,
-        'tau_sources': network_inference.tau_sources,
-        'max_lag_target': network_inference.max_lag_target,
-        'tau_target': network_inference.tau_target,
-        'cmi_estimator':  network_inference.cmi_estimator,
-        'kraskov_k': network_inference.kraskov_k,
-        'num_threads': network_inference.jidt_threads_n,
-        'permute_in_time': network_inference.permute_in_time,
-        'n_perm_max_stat': network_inference.n_perm_max_stat,
-        'n_perm_min_stat': network_inference.n_perm_min_stat,
-        'n_perm_omnibus': network_inference.n_perm_omnibus,
-        'n_perm_max_seq': network_inference.n_perm_max_seq,
-        'fdr_correction': network_inference.fdr_correction,
-        'alpha_max_stat': network_inference.p_value,
-        'alpha_min_stat': network_inference.p_value,
-        'alpha_omnibus': network_inference.p_value,
-        'alpha_max_seq': network_inference.p_value,
-        'alpha_fdr': network_inference.p_value
-    }
+algorithm = network_inference.algorithm
+if algorithm in ['bMI', 'mMI_greedy', 'bTE_greedy', 'mTE_greedy']:
+    # Set analysis options
+    if algorithm == 'bMI':
+        network_analysis = BivariateMI()
+    if algorithm == 'mMI_greedy':
+        network_analysis = MultivariateMI()
+    if algorithm == 'bTE_greedy':
+        network_analysis = BivariateTE()
+    if algorithm == 'mTE_greedy':
+        network_analysis = MultivariateTE()
+
+    #settings['add_conditionals'] = [(35, 3), (26, 1), (17, 5), (25, 4)]
 
     # Add optional settings
     optional_settings_keys = {
@@ -111,10 +107,12 @@ if algorithm == 'mTE_greedy':
         if traj.f_contains(key, shortcuts=True):
             key_last = key.rpartition('.')[-1]
             settings[key_last] = traj[key]
-            print('Using optional setting \'{0}\'={1}'.format(
+            print('Using optional setting \'{0}\'={1}\n'.format(
                 key_last,
                 traj[key])
             )
+
+    print('settings = {0}\n'.format(settings))
 
     # Run analysis
     res = network_analysis.analyse_single_target(
