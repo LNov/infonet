@@ -1,0 +1,19 @@
+#! /bin/bash
+#PBS -N run31_repeated_6
+#PBS -P InfoDynFuncStruct
+#PBS -l select=1:ncpus=1:mem=1GB
+#PBS -l walltime=12:00:00
+#PBS -M lnov6504@uni.sydney.edu.au
+#PBS -m abe
+module load java
+module load python/3.5.1
+module load cuda/8.0.44
+source /project/RDS-FEI-InfoDynFuncStruct-RW/Leo/idtxl_env/bin/activate
+python_script_path='/project/RDS-FEI-InfoDynFuncStruct-RW/Leo/inference/hpc_pypet_single_target.py'
+folder_name='2019_04_11_17h34m06s'
+file_prefix='run_00000031'
+target_id=6
+traj_dir='/project/RDS-FEI-InfoDynFuncStruct-RW/Leo/inference/trajectories/'${folder_name}'/'
+traj_filename='/project/RDS-FEI-InfoDynFuncStruct-RW/Leo/inference/trajectories/'${folder_name}'/traj.hdf5'
+cd ${traj_dir}
+python ${python_script_path} ${traj_dir} ${traj_filename} ${file_prefix} ${target_id}
