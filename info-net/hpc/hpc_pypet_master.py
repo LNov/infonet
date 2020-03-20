@@ -160,10 +160,6 @@ def main():
     )
 
     print(explore_dict)
-
-#    explore_dict = {
-#        'subject_label': ['A01']#, 'A02', 'A03', 'PR03', 'PR04', 'PR06']
-#    }
     traj.f_explore(explore_dict)
 
     # Store trajectory
