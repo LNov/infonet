@@ -1,3 +1,4 @@
+import sys
 import os
 import numpy as np
 from scipy.stats import binom
@@ -6130,7 +6131,7 @@ fdr = False
 
 # Choose folder
 traj_dir = os.path.join(
-    'c:\\DATA\\Materiale progetti in corso\\USyd\\Information network inference\\trajectories',
+    '..\\..\\..\\Information network inference\\trajectories',
     'BA_GC_on_VAR_200nodes_1000_and_10000samples_m1_coupling0.1')
 
 # Set up plot style
@@ -6384,8 +6385,6 @@ algorithm_names = {
     'bTE_greedy': 'Bivariate Transfer Entropy',
     'mTE_greedy': 'Multivariate Transfer Entropy',
 }
-
-
 
 fig_list.append(scatter_performance_vs_in_degree_real())
 fig_list.append(scatter_performance_vs_out_degree_real())
