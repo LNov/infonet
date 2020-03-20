@@ -8,7 +8,6 @@ from idtxl.multivariate_mi import MultivariateMI
 from idtxl.multivariate_te import MultivariateTE
 from idtxl.data import Data
 import pickle
-# import time
 
 
 # Use pickle module to load dictionaries
