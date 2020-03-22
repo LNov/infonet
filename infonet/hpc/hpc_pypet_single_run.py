@@ -1,4 +1,4 @@
-from .. import network_dynamics
+from infonet import network_dynamics
 import sys
 import os
 import time

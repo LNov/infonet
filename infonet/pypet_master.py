@@ -414,18 +414,11 @@ def main():
     os.chdir(traj_dir)
     print('Trajectory and results will be stored to: {0}'.format(traj_dir))
 
-    # # Start timer
-    # start_monotonic = time.monotonic()
-    # start_perf_counter = time.perf_counter()
-    # start_process_time = time.process_time()
-
     # Create an environment that handles running.
     # Let's enable multiprocessing with scoop:
     env = Environment(
         trajectory='traj',
-        comment='Experiment to quantify the discrepancy between '
-                'the inferred information network and the original '
-                'network structure.',
+        comment='',
         add_time=False,
         log_config='DEFAULT',
         log_stdout=True,  # log everything that is printed, will make the log file HUGE
@@ -573,27 +566,11 @@ def main():
             'repetition_i',
         )
     )
-    #    explore_dict={
-    #        'subject_label': ['A02']
-    #    }
-    print(explore_dict)
     traj.f_explore(explore_dict)
 
     # -------------------------------------------------------------------
     # Run the experiment
     env.run(information_network_inference)
-
-    # # Compute total elapsed time
-    # end_monotonic = time.monotonic()
-    # end_perf_counter = time.perf_counter()
-    # end_process_time = time.process_time()
-    # timing_df = pd.DataFrame(index=['monotonic', 'perf_counter', 'process_time'], columns=['start', 'end', 'resolution'])
-    # timing_df.loc['monotonic'] = [start_monotonic, end_monotonic, time.get_clock_info('monotonic').resolution]
-    # timing_df.loc['perf_counter'] = [start_perf_counter, end_perf_counter, time.get_clock_info('perf_counter').resolution]
-    # timing_df.loc['process_time'] = [start_process_time, end_process_time, time.get_clock_info('process_time').resolution]
-    # timing_df['elapsed'] = timing_df['end'] - timing_df['start']
-    # # Add total timing to trajectory
-    # traj.f_add_result('timing', timing_total=timing_df, comment='')
 
     # Check that all runs are completed
     assert traj.f_is_completed()
