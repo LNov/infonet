@@ -1,9 +1,10 @@
 import network_dynamics
 import information_dynamics
+import pypet_utils
 import sys
 import os
 from datetime import datetime
-import time
+import pickle
 import numpy as np
 from pypet import Environment
 from pypet import PickleResult
@@ -11,6 +12,12 @@ from pypet import pypetconstants
 from pypet.utils.explore import cartesian_product
 import networkx as nx
 import jpype
+
+
+# Use pickle module to load dictionaries from disk
+def load_obj(path):
+    with open(path, 'rb') as f:
+        return pickle.load(f)
 
 
 def information_network_inference(traj):
@@ -195,7 +202,19 @@ def main():
 
     """
 
-    # Get current directory
+    # Load settings from file
+    settings_file = 'pypet_settings.pkl'
+    settings = load_obj(settings_file)
+    # Print settings dictionary
+    print('\nSettings dictionary:')
+    for key, value in settings.items():
+        print(key, ' : ', value)
+    print('\nParameters to explore:')
+    for key, value in settings.items():
+            if isinstance(value, list):
+                print(key, ' : ', value)
+
+    # Create new folder to store results
     traj_dir = os.getcwd()
     # Read output path (if provided)
     if len(sys.argv) > 1:
@@ -211,7 +230,7 @@ def main():
     os.makedirs(traj_dir)
     # Change current directory to the one containing the trajectory files
     os.chdir(traj_dir)
-    print('Trajectory and results will be stored to: {0}'.format(traj_dir))
+    print('Trajectory and results will be stored in: {0}'.format(traj_dir))
 
     # Create an environment that handles running.
     # Let's enable multiprocessing with scoop:
@@ -223,11 +242,9 @@ def main():
         log_stdout=True,  # log everything that is printed, will make the log file HUGE
         filename=traj_dir,  # filename or just folder (name will be automatic in this case)
         multiproc=False,
-
         #use_pool=True,
         #ncores=10,
         #freeze_input=True,
-
         use_scoop=False,
         #wrap_mode=pypetconstants.WRAP_MODE_LOCAL,
         memory_cap=1,
@@ -242,136 +259,58 @@ def main():
 
     traj = env.trajectory
 
-    # -------------------------------------------------------------------
     # Add config parameters (those that DO NOT influence the final result of the experiment)
-    traj.f_add_config('parallel_target_analysis', True, comment='Analyse targets in parallel')
-    #traj.f_add_config('debug', False, comment='Activate debug mode')
-    #traj.f_add_config('max_mem_frac', 0.7, comment='Fraction of global GPU memory to use')
+    traj.f_add_config('parallel_target_analysis', True)
+    #traj.f_add_config('debug', False)
+    #traj.f_add_config('max_mem_frac', 0.7)
 
-    # -------------------------------------------------------------------
-    # Add parameters (those that DO influence the final result of the experiment)
+    # Set up trajectory parameters
+    param_to_explore = {}
+    for key, val in settings.items():
+        if isinstance(val, list):
+            param_to_explore[key] = val
+            traj.f_add_parameter(key, val[0])
+        else:
+            traj.f_add_parameter(key, val)
 
-    # -------------------------------------------------------------------
-    # Parameters characterizing the network inference algorithm
-    traj.f_add_parameter('network_inference.algorithm', 'mTE_greedy')
-    #traj.parameters.f_get('network_inference.algorithm').v_comment = network_inference_algorithms['Description'].get(traj.parameters['network_inference.algorithm'])
-    traj.f_add_parameter('network_inference.min_lag_sources', 1, comment='')
-    traj.f_add_parameter('network_inference.max_lag_sources', 1, comment='')
-    traj.f_add_parameter('network_inference.tau_sources', 1, comment='')
-    traj.f_add_parameter('network_inference.max_lag_target', 1, comment='')
-    traj.f_add_parameter('network_inference.tau_target', 1, comment='')
-    #traj.f_add_parameter('network_inference.cmi_estimator', 'JidtDiscreteCMI', comment='Conditional Mutual Information estimator')
-    traj.f_add_parameter('network_inference.cmi_estimator', 'JidtGaussianCMI', comment='Conditional Mutual Information estimator')
-    #traj.f_add_parameter('network_inference.cmi_estimator', 'JidtKraskovCMI', comment='Conditional Mutual Information estimator')
-    #traj.f_add_parameter('network_inference.cmi_estimator', 'OpenCLKraskovCMI', comment='Conditional Mutual Information estimator')
-    traj.f_add_parameter('network_inference.permute_in_time', False, comment='')
-    traj.f_add_parameter('network_inference.jidt_threads_n', 1, comment='Number of threads used by JIDT estimator (default=USE_ALL)')
-    traj.f_add_parameter('network_inference.n_perm_max_stat', 2000, comment='')
-    traj.f_add_parameter('network_inference.n_perm_min_stat', 2000, comment='')
-    traj.f_add_parameter('network_inference.n_perm_omnibus', 2000, comment='')
-    traj.f_add_parameter('network_inference.n_perm_max_seq', 2000, comment='')
-    traj.f_add_parameter('network_inference.fdr_correction', False, comment='')
-    traj.f_add_parameter('network_inference.z_standardise', True, comment='')
-    traj.f_add_parameter('network_inference.kraskov_k', 4, comment='')
-    traj.f_add_parameter('network_inference.p_value', 0.05, comment='critical alpha level for statistical significance testing')
-    # traj.f_add_parameter('network_inference.alpha_max_stats', traj.parameters['network_inference.p_value'], comment='')
-    # traj.f_add_parameter('network_inference.alpha_min_stats', traj.parameters['network_inference.p_value'], comment='')
-    # traj.f_add_parameter('network_inference.alpha_omnibus', traj.parameters['network_inference.p_value'], comment='')
-    # traj.f_add_parameter('network_inference.alpha_max_seq', traj.parameters['network_inference.p_value'], comment='')
-    # traj.f_add_parameter('network_inference.alpha_fdr', traj.parameters['network_inference.p_value'], comment='')
-
-    # -------------------------------------------------------------------
-    # Parameters characterizing the initial topology of the network
-    # traj.f_add_parameter('topology.initial.model', 'ER_n_in')
-    #traj.f_add_parameter('topology.initial.model', 'BA')
-    #traj.f_add_parameter('topology.initial.model', 'WS')
-    traj.f_add_parameter('topology.initial.model', 'planted_partition')
-    # traj.parameters.f_get('topology.initial.model').v_comment = topology_models['Description'].get(traj.parameters['topology.initial.model'])
-    traj.f_add_parameter('topology.initial.nodes_n', 5, comment='Number of nodes')
-    # traj.f_add_parameter('topology.initial.in_degree_expected', 3, comment='Expected in-degree')
-    #traj.f_add_parameter('topology.initial.WS_k', 4, comment='Number of neighbours (and mean degree) in the Watts-Strogatz model')
-    #traj.f_add_parameter('topology.initial.WS_p', 0.0, comment='Rewiring probability in the Watts-Strogatz model')
-    #traj.f_add_parameter('topology.initial.BA_m', 1, comment='Number of edges to attach from a new node to existing nodes in the Barabási–Albert model')
-    traj.f_add_parameter('topology.initial.partitions_n', 5, comment='Number of partitions in the planted partition model')
-    traj.f_add_parameter('topology.initial.p_in', 0.5, comment='Probability of connecting vertices within a group in the planted partition model')
-    traj.f_add_parameter('topology.initial.p_out', 0.01, comment='Probability of connecting vertices between groups in the planted partition model')
-
-    # -------------------------------------------------------------------
-    # Parameters characterizing the evolution of the topology
-    traj.f_add_parameter('topology.evolution.model', 'static')
-    #traj.parameters.f_get('topology.evolution.model').v_comment = topology_evolution_models['Description'].get(traj.parameters['topology.evolution.model'])
-
-    # -------------------------------------------------------------------
-    # Parameters characterizing the coupling between the nodes
-    traj.f_add_parameter('node_coupling.initial.model', 'linear', comment='Linear coupling model: the input to each target node is the weighted sum of the outputs of its source nodes')
-    traj.f_add_parameter('node_coupling.initial.weight_distribution', 'fixed')
-    #traj.parameters.f_get('node_coupling.initial.weight_distribution').v_comment = weight_distributions['Description'].get(traj.parameters['node_coupling.initial.weight_distribution'])
-    traj.f_add_parameter('node_coupling.initial.fixed_coupling', 0.1)
-
-    # -------------------------------------------------------------------
-    # Parameters characterizing the delay
-    traj.f_add_parameter('delay.initial.distribution', 'uniform')
-    #traj.parameters.f_get('delay.initial.distribution').v_comment = delay_distributions['Description'].get(traj.parameters['delay.initial.distribution'])
-    traj.f_add_parameter('delay.initial.delay_links_n_max', 1, comment='Maximum number of delay links')
-    traj.f_add_parameter('delay.initial.delay_min', 1, comment='')
-    traj.f_add_parameter('delay.initial.delay_max', 1, comment='')
-    traj.f_add_parameter('delay.initial.delay_self', 1, comment='')
-
-    # -------------------------------------------------------------------
-    # Parameters characterizing the dynamics of the nodes
-    #traj.f_add_parameter('node_dynamics.model', 'logistic_map')
-    traj.f_add_parameter('node_dynamics.model', 'AR_gaussian_discrete')
-    #traj.f_add_parameter('node_dynamics.model', 'boolean_random')
-    #traj.parameters.f_get('node_dynamics.model').v_comment = node_dynamics_models['Description'].get(traj.parameters['node_dynamics.model'])
-    traj.f_add_parameter('node_dynamics.samples_n', 100, comment='Number of samples (observations) to record')
-    traj.f_add_parameter('node_dynamics.samples_transient_n', 1000 * traj.topology.initial.nodes_n, comment='Number of initial samples (observations) to skip to leave out the transient')
-    traj.f_add_parameter('node_dynamics.replications', 1, comment='Number of replications (trials) to record')
-    traj.f_add_parameter('node_dynamics.noise_std', 0.1, comment='Standard deviation of Gaussian noise')
-    #traj.f_add_parameter('node_dynamics.RBN_in_degree', 4, comment='Indegree for random boolean network dynamics')
-    #traj.f_add_parameter('node_dynamics.noise_flip_p', 0.005, comment='Probability of flipping bit in Boolean dynamics')
-
-    # -------------------------------------------------------------------
-    # Parameters characterizing the estimator
-    # traj.f_add_parameter('estimation.history_source', 1, comment='Embedding length for the source')
-    # traj.f_add_parameter('estimation.history_target', 14, comment='Embedding length for the target')
-
-    # -------------------------------------------------------------------
-    # Parameters characterizing the repetitions of the same run
-    traj.f_add_parameter('repetition_i', 0, comment='Index of the current repetition') # Normally starts from 0
-
-    # -------------------------------------------------------------------
     # Define parameter combinations to explore (a trajectory in
-    # the parameter space)
-    # The second argument, the tuple, specifies the order of the cartesian product,
+    # the parameter space). The second argument, the tuple, specifies the order
+    #  of the cartesian product.
     # The variable on the right most side changes fastest and defines the
     # 'inner for-loop' of the cartesian product
     explore_dict = cartesian_product(
-        {
-            'network_inference.algorithm': ['bMI_greedy', 'bTE_greedy', 'mTE_greedy'],
-            #'node_coupling.initial.weight_distribution': ['fixed'],
-            'repetition_i': np.arange(0, 5, 1).tolist(),
-            'topology.initial.nodes_n': np.arange(50, 50+1, 300).tolist(),
-            'node_dynamics.samples_n': np.array([1000, 10000]).tolist(),
-            'network_inference.p_value': np.array([0.001]).tolist(),
-            #'node_coupling.initial.self_coupling': np.arange(-0.5, 0.5 + 0.001, 0.1).tolist(),
-            #'node_coupling.initial.total_cross_coupling': np.arange(-1., 1 + 0.001, 0.2).tolist(),
-            #'topology.initial.WS_p': np.around(np.logspace(-2.2, 0, 10), decimals=4).tolist(),
-        },
-        (
-            'network_inference.algorithm',
-            #'node_coupling.initial.weight_distribution',
-            'network_inference.p_value',
-            'node_dynamics.samples_n',
-            'topology.initial.nodes_n',
-            #'topology.initial.WS_p',
-            #'node_coupling.initial.self_coupling',
-            #'node_coupling.initial.total_cross_coupling',
-            'repetition_i',
-        )
+        param_to_explore,
+        tuple(param_to_explore.keys())
     )
+    # explore_dict = cartesian_product(
+    #     {
+    #         'network_inference.algorithm': ['bMI_greedy', 'bTE_greedy', 'mTE_greedy'],
+    #         #'node_coupling.initial.weight_distribution': ['fixed'],
+    #         'repetition_i': np.arange(0, 5, 1).tolist(),
+    #         'topology.initial.nodes_n': np.arange(50, 50+1, 300).tolist(),
+    #         'node_dynamics.samples_n': np.array([1000, 10000]).tolist(),
+    #         'network_inference.p_value': np.array([0.001]).tolist(),
+    #         #'node_coupling.initial.self_coupling': np.arange(-0.5, 0.5 + 0.001, 0.1).tolist(),
+    #         #'node_coupling.initial.total_cross_coupling': np.arange(-1., 1 + 0.001, 0.2).tolist(),
+    #         #'topology.initial.WS_p': np.around(np.logspace(-2.2, 0, 10), decimals=4).tolist(),
+    #     },
+    #     (
+    #         'network_inference.algorithm',
+    #         #'node_coupling.initial.weight_distribution',
+    #         'network_inference.p_value',
+    #         'node_dynamics.samples_n',
+    #         'topology.initial.nodes_n',
+    #         #'topology.initial.WS_p',
+    #         #'node_coupling.initial.self_coupling',
+    #         #'node_coupling.initial.total_cross_coupling',
+    #         'repetition_i',
+    #     )
+    # )
     traj.f_explore(explore_dict)
 
-    # -------------------------------------------------------------------
+    # Store trajectory parameters to disk
+    pypet_utils.print_traj_leaves(traj, 'parameters', 'traj_parameters.txt')
+
     # Run the experiment
     env.run(information_network_inference)
     # env.run(bTE_on_existing_links)

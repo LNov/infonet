@@ -126,6 +126,3 @@ if algorithm in ['bMI', 'mMI_greedy', 'bTE_greedy', 'mTE_greedy']:
         traj_dir,
         '.'.join([file_prefix, 'network_analysis.res', str(target_id), 'pkl'])
     )
-
-#    else:
-#        raise ParameterValue(algorithm, msg='Network inference algorithm not yet implemented')  

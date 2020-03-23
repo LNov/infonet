@@ -3,7 +3,14 @@ import os
 import numpy as np
 
 
-def print_traj_leaves(traj, node_name):
+def my_print(*args, sep=',', file=None):
+    if isinstance(file, str):
+        print(args, sep=sep, file=open(file, "a"))
+    else:
+        print(args, sep=sep)
+
+
+def print_traj_leaves(traj, node_name, print_to_file=None):
     try:
         node = traj.f_get(node_name)
     except AttributeError as e:
@@ -13,28 +20,35 @@ def print_traj_leaves(traj, node_name):
             if node.f_has_leaves():
                 for leave in node.f_iter_leaves():
                     if leave.f_has_range():
-                        print(
+                        my_print(
                             leave.v_full_name,
                             np.unique(leave.f_get_range()),
-                            sep=' : ')
+                            sep=' : ',
+                            file=print_to_file)
                     else:
-                        print(
+                        my_print(
                             leave.v_full_name,
                             leave.f_val_to_str(),
-                            sep=' : ')
+                            sep=' : ',
+                            file=print_to_file)
             else:
                 print('node \'{}\' has no leaves'.format(node_name))
         else:
             if node.f_has_range():
-                print(
+                my_print(
                     node.v_full_name,
                     np.unique(node.f_get_range()),
-                    sep=' : ')
+                    sep=' : ',
+                    file=print_to_file)
             else:
-                print(node.v_full_name, node.f_val_to_str(), sep=' : ')
+                print(
+                    node.v_full_name,
+                    node.f_val_to_str(),
+                    sep=' : ',
+                    file=print_to_file)
 
 
-def print_traj_parameters(traj_dir):
+def print_traj_parameters_explored(traj_dir):
     # Load the trajectory from the hdf5 file
     # Only load parameters, results will be loaded at runtime (auto loading)
     
