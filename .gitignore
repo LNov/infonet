@@ -1,0 +1,53 @@
+# pip install -e  #
+###################
+*.egg-info
+
+# temp scripts  #
+###################
+temp/
+
+
+# Compiled source #
+###################
+*.pyc
+*.py~
+
+# Sphinx documentation #
+########################
+docs/_build
+
+
+# Logs and databases #
+######################
+*.log
+*.swp
+.directory
+.DS_store
+.cache
+.spyderproject
+.spyderworkspace
+*.bac*
+*.in~
+.vscode
+
+# Code Coverage      #
+######################
+*.coverage
+test/htmlcov
+
+# Profiling          #
+######################
+*.stats
+
+# TeX aux files      #
+######################
+*.aux
+*.out
+
+# Testing output     #
+######################
+# https://stackoverflow.com/questions/4250063/how-to-gitignore-all-files-folder-in-a-folder-but-not-the-folder-itself
+# exclude everything
+test/output/*
+# exception to the rule
+test/output/.gitkeep
