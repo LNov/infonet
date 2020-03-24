@@ -10,7 +10,7 @@ def my_print(*args, sep=',', file=None):
         print(args, sep=sep)
 
 
-def print_traj_leaves(traj, node_name, print_to_file=None):
+def print_traj_leaves(traj, node_name='parameters', print_to_file=None):
     try:
         node = traj.f_get(node_name)
     except AttributeError as e:
@@ -74,3 +74,40 @@ def print_traj_parameters_explored(traj_dir):
     parameters_explored = [str.split(par, '.').pop() for par in (
         traj.f_get_explored_parameters())]
     print(parameters_explored)
+
+
+def find_run_id(traj, parameters, desired_values):
+    # Find the run indices where the parameters have some desired values
+    # parameters and desired values must be tuples of the same lenght
+    # E.g. parameters = ('x', 'y') and desired_values = (1, 8)
+    def my_filter_predicate(*parameters):
+        if isinstance(parameters, tuple) and isinstance(desired_values, tuple):
+            if len(parameters) > 0 and len(parameters) == len(desired_values):
+                res = True
+                for p, val in zip(parameters, desired_values):
+                    res = res and (p == val)
+            else:
+                print('ERROR: parameters and desired_values must have'
+                      'the same lenght. len(parameters) = {0}, '
+                      'len(desired_values) = {1}'.format(
+                        len(parameters),
+                        len(desired_values)))
+        else:
+            print('ERROR: parameters and desired_values must be tuples.'
+                  'type(parameters) = {0}, type(desired_values) = {1}'.format(
+                    type(parameters),
+                    type(desired_values)))
+            res = False
+        return res
+
+    print('The run names for the desired parameter combinations:')
+    idx_iterator = traj.f_find_idx(parameters, my_filter_predicate)
+    for idx in idx_iterator:
+        # Focus on one particular run.
+        # This is equivalent to calling `traj.f_set_crun(idx)`.
+        traj.v_idx = idx
+        run_name = traj.v_crun
+        par_list = [traj[par] for par in parameters]
+        print('{0}: {1} = {2}'.format(run_name, parameters, par_list))
+    # Set everything back to normal
+    traj.f_restore_default()
