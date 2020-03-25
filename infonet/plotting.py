@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from matplotlib.backends.backend_pdf import PdfPages
 from mpl_toolkits.axes_grid.inset_locator import (
     inset_axes, InsetPosition, mark_inset)
-from matplotlib.patches import FancyArrowPatch, Circle
+from matplotlib.patches import FancyArrowPatch, Circle, Patch
 from matplotlib.ticker import FuncFormatter
 from matplotlib.offsetbox import (OffsetImage, AnnotationBbox)
 import matplotlib.gridspec as gridspec
@@ -2054,6 +2054,289 @@ def plot_relative_error_TE_empirical_vs_theoretical_causal_vars_alpha_interest()
 
     return fig
 
+
+# -------------------------------------------------------------------------
+# endregion
+# -------------------------------------------------------------------------
+
+
+
+# -------------------------------------------------------------------------
+# region TE theoretical VAR1 motifs
+# -------------------------------------------------------------------------
+
+def plot_bTE_vs_WS_p():
+    # Plot bTE vs. Watts-Strogatz rewiring prob
+    # Legend: methods for computing bTE
+    bTE_methods = [
+        'bTE_empirical_causal_vars',
+        'bTE_theoretical_causal_vars',
+        'bTE_approx4_causal_vars',
+        'bTE_motifs_acde_causal_vars',
+        'bTE_motifs_ae_causal_vars',
+        #'bTE_approx2_causal_vars',
+        ]
+    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+    
+    # mpl.rcParams['axes.labelsize'] = 44
+    # mpl.rcParams['axes.linewidth'] = 1
+    # mpl.rcParams['xtick.labelsize'] = 40
+    # mpl.rcParams['ytick.labelsize'] = 20
+    # mpl.rcParams['lines.linewidth'] = 1.5
+    # mpl.rcParams['lines.markersize'] = 4
+    # mpl.rcParams['legend.fontsize'] = 12
+
+    # Select data of interest
+    df_interest = df[parameters_explored + bTE_methods]
+    df_interest = df_interest.loc[
+        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    df_interest = df_interest.loc[
+        df_interest['weight_distribution'] == weight_interest].drop('weight_distribution', 1)
+    # Average TE values in each matrix
+    # print(df_interest['bTE_empirical_causal_vars'][0])
+    # print(df_interest['bTE_approx2_causal_vars'][0])
+    # print(df_interest['bTE_approx4_causal_vars'][0])
+    # print(df_interest['bTE_theoretical_causal_vars'][0])
+    # 
+    # print(np.nansum(df_interest['bTE_empirical_causal_vars'][0] > 0))
+    # print(np.nansum(df_interest['bTE_approx2_causal_vars'][0] > 0))
+    # print(np.nansum(df_interest['bTE_approx4_causal_vars'][0] > 0))
+    # print(np.nansum(df_interest['bTE_theoretical_causal_vars'][0] > 0))
+    # savemat('bTE_matrix_python', {'bTE_matrix_python':df_interest['bTE_theoretical_causal_vars'][-1]})
+    # df_interest['bTE_empirical_causal_vars'] = df_interest['bTE_empirical_causal_vars'].apply(np.nanmean)
+    # df_interest['bTE_approx2_causal_vars'] = df_interest['bTE_approx2_causal_vars'].apply(np.nanmean)
+    # df_interest['bTE_approx4_causal_vars'] = df_interest['bTE_approx4_causal_vars'].apply(np.nanmean)
+    # df_interest['bTE_theoretical_causal_vars'] = df_interest['bTE_theoretical_causal_vars'].apply(np.nanmean)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    for (method_i, bTE_method) in enumerate(bTE_methods):
+        df_interest[bTE_method] = df_interest[bTE_method].apply(np.nanmean)
+        # Group by WS_p
+        df_aggregate = df_interest.groupby('WS_p').agg(
+            lambda x: list(x))
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Plot average path lenght inferred
+        axs[0].plot(
+            WS_p_range,
+            [np.nanmean(df_aggregate[bTE_method][WS_p])
+             for WS_p in WS_p_range],
+            marker=markers_default[method_i],
+            label=bTE_methods_legends[bTE_method])
+        axs[0].scatter(
+            df_interest['WS_p'].values.astype(float).tolist(),
+            df_interest[bTE_method].values,
+            alpha=0.3,
+            marker=markers_default[method_i])
+    # Set axes properties
+    axs[0].set_xlabel(r'$\text{Rewiring probability }(\gamma)$')#, horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(r'$\text{Transfer Entropy}$')
+    axs[0].set_xscale('log')
+    axs[0].yaxis.set_ticks_position('both')
+    axs[0].set_xlim(left=0.002)
+    # Add legend
+    axs[0].legend(loc=(0.03, 0.127))
+
+    fig.set_figheight(3.3)
+    fig.set_figwidth(4)
+
+    return fig
+
+
+def imshow_bTE_vs_indegree_source_target():
+    # Plot bTE as a function if indegree of source and target
+    # Legend: methods for computing bTE
+    bTE_methods = [
+        'bTE_empirical_causal_vars',
+        'bTE_theoretical_causal_vars',
+        #'bTE_motifs_acde_causal_vars',
+        #'bTE_approx2_causal_vars',
+        'bTE_approx4_causal_vars',
+        ]
+    fig, axs = my_subplots(1, len(bTE_methods), sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + bTE_methods]
+    df_interest = df_interest.loc[
+        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    df_interest = df_interest.loc[
+        df_interest['weight_distribution'] == weight_interest].drop('weight_distribution', 1)
+    if 'WS_p' in df_interest.columns:
+        df_interest = df_interest.drop('WS_p', 1)
+    
+    #savemat('bTE_matrix_python', {'bTE_matrix_python':df_interest['bTE_theoretical_causal_vars'][-1]})
+    
+    
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {"repetition_i"}
+    # Ensure that only the desired parameters are aggregated or averaged
+    df_keys_remaining = df_interest.columns.get_level_values(0)
+    check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+    imshow_plots = []
+    for i, bTE_method in enumerate(bTE_methods):
+        # Set subplot title
+        axs[0, i].set_title(bTE_methods_legends[bTE_method])
+        max_indegree = 1
+        im_matrix_sparse = []
+        for bTE_matrix in df_interest[bTE_method]:
+            adj_matrix = bTE_matrix > 0
+            indegrees = np.sum(adj_matrix, 1)
+            max_indegree = max(max_indegree, np.max(indegrees))
+            for s in range(N_interest):
+                for t in range(N_interest):
+                    if adj_matrix[s, t] > 0:
+                        im_matrix_sparse.append((
+                                indegrees[s],
+                                indegrees[t],
+                                bTE_matrix[s, t]))
+        # go from sparse to dense representation of image_matrix
+        image_matrix = np.zeros(shape=(max_indegree + 1, max_indegree + 1))
+        n_points = np.zeros(shape=(max_indegree + 1, max_indegree + 1))
+        for v in im_matrix_sparse:
+            image_matrix[v[0], v[1]] += v[2]
+            n_points[v[0], v[1]] += 1
+        image_matrix[image_matrix == 0] = np.NaN
+        # divide sum by number of points to get the average
+        n_points[n_points == 0] = 1
+        image_matrix = image_matrix / n_points
+        # plot image_matrix
+        #im = axs[0, i].imshow(image_matrix, origin='lower')
+        #fig.colorbar(im, orientation="vertical")
+        imshow_plots.append(axs[0, i].imshow(image_matrix, origin='lower'))
+        # Set axes properties
+        axs[0, i].set_xlabel(r'$\text{Target in-degree}$', horizontalalignment='right', x=1.0)
+        axs[0, i].set_ylabel(r'$\text{Source in-degree}$')
+    # Find the min and max of all colors for use in setting the color scale.
+    # As shown in https://matplotlib.org/3.1.0/gallery/images_contours_and_fields/multi_image.html
+    vmin = min(image.get_array().min() for image in imshow_plots)
+    vmax = max(image.get_array().max() for image in imshow_plots)
+    norm = colors.Normalize(vmin=vmin, vmax=vmax)
+    for im in imshow_plots:
+        im.set_norm(norm)
+    # Show colorbar
+    fig.colorbar(imshow_plots[0], ax = axs[0, -1], orientation='vertical', pad=0.2)
+    # Make images respond to changes in the norm of other images (e.g. via the
+    # "edit axis, curves and images parameters" GUI on Qt), but be careful not to
+    # recurse infinitely!
+    def update(changed_image):
+        for im in imshow_plots:
+            if (changed_image.get_cmap() != im.get_cmap()
+                    or changed_image.get_clim() != im.get_clim()):
+                im.set_cmap(changed_image.get_cmap())
+                im.set_clim(changed_image.get_clim())
+    for im in imshow_plots:
+        im.callbacksSM.connect('changed', update)
+
+    return fig
+
+
+def imshow_bTE_empirical_vs_indegree_source_target():
+    # Plot bTE as a function if indegree of source and target
+    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + ['bTE_empirical_causal_vars']]
+    df_interest = df_interest.loc[
+        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    df_interest = df_interest.loc[
+        df_interest['weight_distribution'] == weight_interest].drop('weight_distribution', 1)
+    if 'WS_p' in df_interest.columns:
+        df_interest = df_interest.drop('WS_p', 1)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {"repetition_i"}
+    # Ensure that only the desired parameters are aggregated or averaged
+    df_keys_remaining = df_interest.columns.get_level_values(0)
+    check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+    max_indegree = 1
+    im_matrix_sparse = []
+    for bTE_matrix in df_interest['bTE_empirical_causal_vars']:
+        adj_matrix = bTE_matrix > 0
+        indegrees = np.sum(adj_matrix, 1)
+        max_indegree = max(max_indegree, np.max(indegrees))
+        for s in range(N_interest):
+            for t in range(N_interest):
+                if adj_matrix[s, t] > 0:
+                    im_matrix_sparse.append((
+                            indegrees[s],
+                            indegrees[t],
+                            bTE_matrix[s, t]))
+    # go from sparse to dense representation of image_matrix
+    image_matrix = np.zeros(shape=(max_indegree + 1, max_indegree + 1))
+    n_points = np.zeros(shape=(max_indegree + 1, max_indegree + 1))
+    for v in im_matrix_sparse:
+        image_matrix[v[0], v[1]] += v[2]
+        n_points[v[0], v[1]] += 1
+    image_matrix[image_matrix == 0] = np.NaN
+    # divide sum by number of points to get the average
+    n_points[n_points == 0] = 1
+    image_matrix = image_matrix / n_points
+    # plot image_matrix
+    im = axs[0].imshow(image_matrix, origin='lower')
+    fig.colorbar(im, orientation="vertical")
+    # Set axes properties
+    #axs[0].set_ylim(top=15)
+    axs[0].set_xlabel(r'$\text{Target in-degree}$')#, horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(r'$\text{Source in-degree}$')
+
+    return fig
+
+
+def imshow_bTE_theoretical_vs_indegree_source_target():
+    # Plot bTE as a function if indegree of source and target
+    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + ['bTE_empirical_causal_vars']]
+    df_interest = df_interest.loc[
+        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    df_interest = df_interest.loc[
+        df_interest['weight_distribution'] == weight_interest].drop('weight_distribution', 1)
+    if 'WS_p' in df_interest.columns:
+        df_interest = df_interest.drop('WS_p', 1)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {"repetition_i"}
+    # Ensure that only the desired parameters are aggregated or averaged
+    df_keys_remaining = df_interest.columns.get_level_values(0)
+    check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+    max_indegree = 1
+    im_matrix_sparse = []
+    for bTE_matrix in df_interest['bTE_empirical_causal_vars']:
+        adj_matrix = bTE_matrix > 0
+        indegrees = np.sum(adj_matrix, 1)
+        max_indegree = max(max_indegree, np.max(indegrees))
+        for s in range(N_interest):
+            for t in range(N_interest):
+                if adj_matrix[s, t] > 0:
+                    im_matrix_sparse.append((
+                            indegrees[s],
+                            indegrees[t],
+                            bTE_matrix[s, t]))
+    # go from sparse to dense representation of image_matrix
+    image_matrix = np.zeros(shape=(max_indegree + 1, max_indegree + 1))
+    n_points = np.zeros(shape=(max_indegree + 1, max_indegree + 1))
+    for v in im_matrix_sparse:
+        image_matrix[v[0], v[1]] += v[2]
+        n_points[v[0], v[1]] += 1
+    image_matrix[image_matrix == 0] = np.NaN
+    # divide sum by number of points to get the average
+    n_points[n_points == 0] = 1
+    image_matrix = image_matrix / n_points
+    # plot image_matrix
+    im = axs[0].imshow(image_matrix, origin='lower')
+    fig.colorbar(im, orientation="vertical")
+    # Set axes properties
+    axs[0].set_xlabel(r'$\text{Target in-degree}$')#, horizontalalignment='right', x=1.0)
+    #axs[0].set_xlabel(r'$d_\textnormal{in}(Y)$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(r'$\text{Source in-degree}$')
+    #axs[0].set_ylabel(r'$d_\textnormal{in}(X)$')
+
+    return fig
 
 # -------------------------------------------------------------------------
 # endregion
@@ -5840,299 +6123,319 @@ def plot_rich_club_out_degrees_inferred_vs_real():
 
 
 # -------------------------------------------------------------------------
-# region TE theoretical VAR1
+# region Stochastic Block Model
 # -------------------------------------------------------------------------
 
-def plot_bTE_vs_WS_p():
-    # Plot bTE vs. Watts-Strogatz rewiring prob
-    # Legend: methods for computing bTE
-    bTE_methods = [
-        'bTE_empirical_causal_vars',
-        'bTE_theoretical_causal_vars',
-        'bTE_approx4_causal_vars',
-        'bTE_motifs_acde_causal_vars',
-        'bTE_motifs_ae_causal_vars',
-        #'bTE_approx2_causal_vars',
-        ]
-    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
-    
-    # mpl.rcParams['axes.labelsize'] = 44
-    # mpl.rcParams['axes.linewidth'] = 1
-    # mpl.rcParams['xtick.labelsize'] = 40
-    # mpl.rcParams['ytick.labelsize'] = 20
-    # mpl.rcParams['lines.linewidth'] = 1.5
-    # mpl.rcParams['lines.markersize'] = 4
-    # mpl.rcParams['legend.fontsize'] = 12
-
+def violin_plot_SBM_precision_vs_nodes_n_TODO():
+    # Violin plot of precision within and between groups vs. nodes_n
+    # Subplots vertical: algorithms
+    subplots_v = len(algorithms)
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
     # Select data of interest
-    df_interest = df[parameters_explored + bTE_methods]
+    df_interest = df[parameters_explored + [
+        'precision_within_groups',
+        'precision_between_groups',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
     df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
+        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
+    #df_interest = df_interest.loc[
+    #    df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
-    df_interest = df_interest.loc[
-        df_interest['weight_distribution'] == weight_interest].drop('weight_distribution', 1)
-    # Average TE values in each matrix
-    # print(df_interest['bTE_empirical_causal_vars'][0])
-    # print(df_interest['bTE_approx2_causal_vars'][0])
-    # print(df_interest['bTE_approx4_causal_vars'][0])
-    # print(df_interest['bTE_theoretical_causal_vars'][0])
-    # 
-    # print(np.nansum(df_interest['bTE_empirical_causal_vars'][0] > 0))
-    # print(np.nansum(df_interest['bTE_approx2_causal_vars'][0] > 0))
-    # print(np.nansum(df_interest['bTE_approx4_causal_vars'][0] > 0))
-    # print(np.nansum(df_interest['bTE_theoretical_causal_vars'][0] > 0))
-    # savemat('bTE_matrix_python', {'bTE_matrix_python':df_interest['bTE_theoretical_causal_vars'][-1]})
-    # df_interest['bTE_empirical_causal_vars'] = df_interest['bTE_empirical_causal_vars'].apply(np.nanmean)
-    # df_interest['bTE_approx2_causal_vars'] = df_interest['bTE_approx2_causal_vars'].apply(np.nanmean)
-    # df_interest['bTE_approx4_causal_vars'] = df_interest['bTE_approx4_causal_vars'].apply(np.nanmean)
-    # df_interest['bTE_theoretical_causal_vars'] = df_interest['bTE_theoretical_causal_vars'].apply(np.nanmean)
-    # Choose which of the explored parameters will be aggregated or averaged
+    # Choose which of the explored parameters to collect data over
     parameters_to_average = {'repetition_i'}
-    for (method_i, bTE_method) in enumerate(bTE_methods):
-        df_interest[bTE_method] = df_interest[bTE_method].apply(np.nanmean)
-        # Group by WS_p
-        df_aggregate = df_interest.groupby('WS_p').agg(
-            lambda x: list(x))
+    for (axs_row, algorithm) in enumerate(algorithms):
+        # Set subplot title
+        axs[axs_row].set_title('{0}'.format(
+            algorithm_names[algorithm]))
+        # Select dataframe entries(i.e runs) with the same algorithm
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group and concatenate lists
+        df_aggregate = df_algorithm.groupby('nodes_n').agg(
+            lambda x: x.tolist())
         # Ensure that only the desired parameters are aggregated or averaged
         df_keys_remaining = df_aggregate.columns.get_level_values(0)
         check_remaining_dimensions(df_keys_remaining, parameters_to_average)
-        # Plot average path lenght inferred
-        axs[0].plot(
-            WS_p_range,
-            [np.nanmean(df_aggregate[bTE_method][WS_p])
-             for WS_p in WS_p_range],
-            marker=markers_default[method_i],
-            label=bTE_methods_legends[bTE_method])
-        axs[0].scatter(
-            df_interest['WS_p'].values.astype(float).tolist(),
-            df_interest[bTE_method].values,
-            alpha=0.3,
-            marker=markers_default[method_i])
-    # Set axes properties
-    axs[0].set_xlabel(r'$\text{Rewiring probability }(\gamma)$')#, horizontalalignment='right', x=1.0)
-    axs[0].set_ylabel(r'$\text{Transfer Entropy}$')
-    axs[0].set_xscale('log')
-    axs[0].yaxis.set_ticks_position('both')
-    axs[0].set_xlim(left=0.002)
-    # Add legend
-    axs[0].legend(loc=(0.03, 0.127))
-
-    fig.set_figheight(3.3)
-    fig.set_figwidth(4)
-
-    return fig
-
-
-def imshow_bTE_vs_indegree_source_target():
-    # Plot bTE as a function if indegree of source and target
-    # Legend: methods for computing bTE
-    bTE_methods = [
-        'bTE_empirical_causal_vars',
-        'bTE_theoretical_causal_vars',
-        #'bTE_motifs_acde_causal_vars',
-        #'bTE_approx2_causal_vars',
-        'bTE_approx4_causal_vars',
-        ]
-    fig, axs = my_subplots(1, len(bTE_methods), sharex=True, sharey=True)
-    # Select data of interest
-    df_interest = df[parameters_explored + bTE_methods]
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
-        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
-    df_interest = df_interest.loc[
-        df_interest['weight_distribution'] == weight_interest].drop('weight_distribution', 1)
-    if 'WS_p' in df_interest.columns:
-        df_interest = df_interest.drop('WS_p', 1)
-    
-    #savemat('bTE_matrix_python', {'bTE_matrix_python':df_interest['bTE_theoretical_causal_vars'][-1]})
-    
-    
-    # Choose which of the explored parameters will be aggregated or averaged
-    parameters_to_average = {"repetition_i"}
-    # Ensure that only the desired parameters are aggregated or averaged
-    df_keys_remaining = df_interest.columns.get_level_values(0)
-    check_remaining_dimensions(df_keys_remaining, parameters_to_average)
-    imshow_plots = []
-    for i, bTE_method in enumerate(bTE_methods):
-        # Set subplot title
-        axs[0, i].set_title(bTE_methods_legends[bTE_method])
-        max_indegree = 1
-        im_matrix_sparse = []
-        for bTE_matrix in df_interest[bTE_method]:
-            adj_matrix = bTE_matrix > 0
-            indegrees = np.sum(adj_matrix, 1)
-            max_indegree = max(max_indegree, np.max(indegrees))
-            for s in range(N_interest):
-                for t in range(N_interest):
-                    if adj_matrix[s, t] > 0:
-                        im_matrix_sparse.append((
-                                indegrees[s],
-                                indegrees[t],
-                                bTE_matrix[s, t]))
-        # go from sparse to dense representation of image_matrix
-        image_matrix = np.zeros(shape=(max_indegree + 1, max_indegree + 1))
-        n_points = np.zeros(shape=(max_indegree + 1, max_indegree + 1))
-        for v in im_matrix_sparse:
-            image_matrix[v[0], v[1]] += v[2]
-            n_points[v[0], v[1]] += 1
-        image_matrix[image_matrix == 0] = np.NaN
-        # divide sum by number of points to get the average
-        n_points[n_points == 0] = 1
-        image_matrix = image_matrix / n_points
-        # plot image_matrix
-        #im = axs[0, i].imshow(image_matrix, origin='lower')
-        #fig.colorbar(im, orientation="vertical")
-        imshow_plots.append(axs[0, i].imshow(image_matrix, origin='lower'))
+        precision_within_groups = [
+            df_aggregate.loc[nodes_n].precision_within_groups
+            for nodes_n in nodes_n_range]
+        #precision_within_groups = precision_within_groups[0]
+        print(precision_within_groups)
+        print(nodes_n_range)
+        # Violin plot of omnibus TE vs nodes_n
+        violin_within = axs[axs_row].violinplot(
+            precision_within_groups,
+            positions=nodes_n_range,
+            widths=1,#WS_p_range/2,
+            showmeans=True,
+            showextrema=True,
+            showmedians=False,
+            #points=100,
+            #bw_method=
+            )
+        # # Only plot right-hand half of the violins
+        # for b in violin['bodies']:
+        #     if len(b.get_paths()) > 0:
+        #         m = np.nanmean(b.get_paths()[0].vertices[:, 0])
+        #         b.get_paths()[0].vertices[:, 0] = np.clip(
+        #             b.get_paths()[0].vertices[:, 0], m, np.inf)
+        #         b.set_color('tab:blue')
+        # # Join mean values
+        # mean_vals = [np.nanmean(np.concatenate(df_aggregate.loc[WS_p].TE_omnibus_empirical)) for WS_p in WS_p_range]
+        # axs[axs_row].plot(
+        #     WS_p_range,
+        #     mean_vals,
+        #     '-o',
+        #     color='tab:blue')
         # Set axes properties
-        axs[0, i].set_xlabel(r'$\text{Target in-degree}$', horizontalalignment='right', x=1.0)
-        axs[0, i].set_ylabel(r'$\text{Source in-degree}$')
-    # Find the min and max of all colors for use in setting the color scale.
-    # As shown in https://matplotlib.org/3.1.0/gallery/images_contours_and_fields/multi_image.html
-    vmin = min(image.get_array().min() for image in imshow_plots)
-    vmax = max(image.get_array().max() for image in imshow_plots)
-    norm = colors.Normalize(vmin=vmin, vmax=vmax)
-    for im in imshow_plots:
-        im.set_norm(norm)
-    # Show colorbar
-    fig.colorbar(imshow_plots[0], ax = axs[0, -1], orientation='vertical', pad=0.2)
-    # Make images respond to changes in the norm of other images (e.g. via the
-    # "edit axis, curves and images parameters" GUI on Qt), but be careful not to
-    # recurse infinitely!
-    def update(changed_image):
-        for im in imshow_plots:
-            if (changed_image.get_cmap() != im.get_cmap()
-                    or changed_image.get_clim() != im.get_clim()):
-                im.set_cmap(changed_image.get_cmap())
-                im.set_clim(changed_image.get_clim())
-    for im in imshow_plots:
-        im.callbacksSM.connect('changed', update)
-
+        axs[axs_row].set_xlabel(
+            r'$\text{N}$', horizontalalignment='right', x=1.0)
+        axs[axs_row].set_ylabel(
+            r'$\text{Precision}$')
+        axs[axs_row].yaxis.set_ticks_position('both')
+        axs[axs_row].set_ylim(bottom=0, top=1.1)
     return fig
 
 
-def imshow_bTE_empirical_vs_indegree_source_target():
-    # Plot bTE as a function if indegree of source and target
-    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+def violin_plot_SBM_precision_OLD():
+    # Violin plot of precision within and between groups vs. nodes_n
+    subplots_v = 1
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
     # Select data of interest
-    df_interest = df[parameters_explored + ['bTE_empirical_causal_vars']]
+    df_interest = df[parameters_explored + [
+        'precision_within_groups',
+        'precision_between_groups',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    df_interest = df_interest.loc[
+        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
     df_interest = df_interest.loc[
         df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
-    df_interest = df_interest.loc[
-        df_interest['weight_distribution'] == weight_interest].drop('weight_distribution', 1)
-    if 'WS_p' in df_interest.columns:
-        df_interest = df_interest.drop('WS_p', 1)
-    # Choose which of the explored parameters will be aggregated or averaged
-    parameters_to_average = {"repetition_i"}
-    # Ensure that only the desired parameters are aggregated or averaged
-    df_keys_remaining = df_interest.columns.get_level_values(0)
-    check_remaining_dimensions(df_keys_remaining, parameters_to_average)
-    max_indegree = 1
-    im_matrix_sparse = []
-    for bTE_matrix in df_interest['bTE_empirical_causal_vars']:
-        adj_matrix = bTE_matrix > 0
-        indegrees = np.sum(adj_matrix, 1)
-        max_indegree = max(max_indegree, np.max(indegrees))
-        for s in range(N_interest):
-            for t in range(N_interest):
-                if adj_matrix[s, t] > 0:
-                    im_matrix_sparse.append((
-                            indegrees[s],
-                            indegrees[t],
-                            bTE_matrix[s, t]))
-    # go from sparse to dense representation of image_matrix
-    image_matrix = np.zeros(shape=(max_indegree + 1, max_indegree + 1))
-    n_points = np.zeros(shape=(max_indegree + 1, max_indegree + 1))
-    for v in im_matrix_sparse:
-        image_matrix[v[0], v[1]] += v[2]
-        n_points[v[0], v[1]] += 1
-    image_matrix[image_matrix == 0] = np.NaN
-    # divide sum by number of points to get the average
-    n_points[n_points == 0] = 1
-    image_matrix = image_matrix / n_points
-    # plot image_matrix
-    im = axs[0].imshow(image_matrix, origin='lower')
-    fig.colorbar(im, orientation="vertical")
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    axs_row = 0
+    #for (alg_i, algorithm) in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same algorithm
+        # df_algorithm = df_interest.loc[
+        #     df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group and concatenate lists
+        # df_aggregate = df_algorithm.groupby('nodes_n').agg(
+        #     lambda x: x.tolist())
+        # Ensure that only the desired parameters are aggregated or averaged
+    df_algorithm = df_interest
+    # df_keys_remaining = df_algorithm.columns
+    # check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+    precision_within_groups = [df_algorithm.loc[df_algorithm['algorithm'] == algorithm].precision_within_groups.values.tolist() for algorithm in algorithms]
+    precision_between_groups = [df_algorithm.loc[df_algorithm['algorithm'] == algorithm].precision_between_groups.values.tolist() for algorithm in algorithms]
+    # Labels for legend
+    labels = []
+    def add_label(violin, label):
+        color = violin["bodies"][0].get_facecolor().flatten()
+        labels.append((Patch(color=color), label))
+    # Violin plot of precision_within_groups
+    positions = np.arange(1, len(algorithms) + 1)
+    print(positions)
+    violin_within = axs[axs_row].violinplot(
+        precision_within_groups,
+        positions=positions,
+        widths=0.5,
+        showmeans=True,
+        showextrema=False,
+        showmedians=False,
+        #points=100,
+        #bw_method=
+        )
+    add_label(violin_within, 'Within groups')    
+    # Violin plot of precision_between_groups
+    violin_between = axs[axs_row].violinplot(
+        precision_between_groups,
+        positions=positions+len(algorithms),
+        widths=0.5,
+        showmeans=True,
+        showextrema=False,
+        showmedians=False,
+        #points=100,
+        #bw_method=
+        )
+    add_label(violin_between, 'Between groups')    
     # Set axes properties
-    #axs[0].set_ylim(top=15)
-    axs[0].set_xlabel(r'$\text{Target in-degree}$')#, horizontalalignment='right', x=1.0)
-    axs[0].set_ylabel(r'$\text{Source in-degree}$')
-
+    # axs[axs_row].set_xlabel(
+    #     r'$\text{N}$', horizontalalignment='right', x=1.0)
+    axs[axs_row].set_ylabel(
+        r'$\text{Precision}$')
+    axs[axs_row].yaxis.set_ticks_position('both')
+    axs[axs_row].set_xticklabels([algorithm_names[algorithm] for algorithm in algorithms]*2, rotation=90)
+    axs[axs_row].set_ylim(bottom=0, top=1.1)
+    axs[axs_row].legend(*zip(*labels), loc=2)
     return fig
 
 
-def imshow_bTE_theoretical_vs_indegree_source_target():
-    # Plot bTE as a function if indegree of source and target
-    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+def violin_plot_SBM_precision():
+    # Violin plot of precision within and between groups vs. nodes_n
+    subplots_v = 1
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
     # Select data of interest
-    df_interest = df[parameters_explored + ['bTE_empirical_causal_vars']]
+    df_interest = df[parameters_explored + [
+        'precision_within_groups',
+        'precision_between_groups',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    df_interest = df_interest.loc[
+        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
     df_interest = df_interest.loc[
         df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
-    df_interest = df_interest.loc[
-        df_interest['weight_distribution'] == weight_interest].drop('weight_distribution', 1)
-    if 'WS_p' in df_interest.columns:
-        df_interest = df_interest.drop('WS_p', 1)
-    # Choose which of the explored parameters will be aggregated or averaged
-    parameters_to_average = {"repetition_i"}
-    # Ensure that only the desired parameters are aggregated or averaged
-    df_keys_remaining = df_interest.columns.get_level_values(0)
-    check_remaining_dimensions(df_keys_remaining, parameters_to_average)
-    max_indegree = 1
-    im_matrix_sparse = []
-    for bTE_matrix in df_interest['bTE_empirical_causal_vars']:
-        adj_matrix = bTE_matrix > 0
-        indegrees = np.sum(adj_matrix, 1)
-        max_indegree = max(max_indegree, np.max(indegrees))
-        for s in range(N_interest):
-            for t in range(N_interest):
-                if adj_matrix[s, t] > 0:
-                    im_matrix_sparse.append((
-                            indegrees[s],
-                            indegrees[t],
-                            bTE_matrix[s, t]))
-    # go from sparse to dense representation of image_matrix
-    image_matrix = np.zeros(shape=(max_indegree + 1, max_indegree + 1))
-    n_points = np.zeros(shape=(max_indegree + 1, max_indegree + 1))
-    for v in im_matrix_sparse:
-        image_matrix[v[0], v[1]] += v[2]
-        n_points[v[0], v[1]] += 1
-    image_matrix[image_matrix == 0] = np.NaN
-    # divide sum by number of points to get the average
-    n_points[n_points == 0] = 1
-    image_matrix = image_matrix / n_points
-    # plot image_matrix
-    im = axs[0].imshow(image_matrix, origin='lower')
-    fig.colorbar(im, orientation="vertical")
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    axs_row = 0
+    # Labels for legend
+    labels = []
+    violins = list(range(len(algorithms)))
+    def add_label(violin, label):
+        color = violin["bodies"][0].get_facecolor().flatten()
+        labels.append((Patch(color=color), label))
+    for (alg_i, algorithm) in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same algorithm
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_algorithm.columns
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        precision_within_groups = df_algorithm.precision_within_groups.values.tolist()
+        precision_between_groups = df_algorithm.precision_between_groups.values.tolist()
+        # Violin plots
+        positions = np.array([alg_i, alg_i + len(algorithms) + 1])
+        violin_width = 0.8
+        violins[alg_i] = axs[axs_row].violinplot(
+            [precision_within_groups, precision_between_groups],
+            positions=positions,
+            widths=violin_width,
+            showmeans=True,
+            showextrema=False,
+            showmedians=False,
+            #points=100,
+            #bw_method=
+            )
+        add_label(violins[alg_i], algorithm_names[algorithm])    
     # Set axes properties
-    axs[0].set_xlabel(r'$\text{Target in-degree}$')#, horizontalalignment='right', x=1.0)
-    #axs[0].set_xlabel(r'$d_\textnormal{in}(Y)$', horizontalalignment='right', x=1.0)
-    axs[0].set_ylabel(r'$\text{Source in-degree}$')
-    #axs[0].set_ylabel(r'$d_\textnormal{in}(X)$')
-
+    # axs[axs_row].set_xlabel(
+    #     r'$\text{N}$', horizontalalignment='right', x=1.0)
+    axs[axs_row].set_ylabel(r'$\text{Precision}$')
+    axs[axs_row].yaxis.set_ticks_position('both')
+    axs[axs_row].set_xticklabels(['', '', 'Within groups', '', '', '', 'Between groups', ''])
+    #axs[axs_row].set_ylim(bottom=0, top=1.1)
+    axs[axs_row].legend(*zip(*labels), loc='lower left')
     return fig
+
+
+def violin_plot_SBM_recall():
+    # Violin plot of recall within and between groups vs. nodes_n
+    subplots_v = 1
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'recall_within_groups',
+        'recall_between_groups',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    df_interest = df_interest.loc[
+        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
+    df_interest = df_interest.loc[
+        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    axs_row = 0
+    # Labels for legend
+    labels = []
+    violins = list(range(len(algorithms)))
+    def add_label(violin, label):
+        color = violin["bodies"][0].get_facecolor().flatten()
+        labels.append((Patch(color=color), label))
+    for (alg_i, algorithm) in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same algorithm
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_algorithm.columns
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        recall_within_groups = df_algorithm.recall_within_groups.values.tolist()
+        recall_between_groups = df_algorithm.recall_between_groups.values.tolist()
+        # Violin plots
+        positions = np.array([alg_i, alg_i + len(algorithms) + 1])
+        violin_width = 0.8
+        violins[alg_i] = axs[axs_row].violinplot(
+            [recall_within_groups, recall_between_groups],
+            positions=positions,
+            widths=violin_width,
+            showmeans=True,
+            showextrema=False,
+            showmedians=False,
+            #points=100,
+            #bw_method=
+            )
+        add_label(violins[alg_i], algorithm_names[algorithm])    
+    # Set axes properties
+    # axs[axs_row].set_xlabel(
+    #     r'$\text{N}$', horizontalalignment='right', x=1.0)
+    axs[axs_row].set_ylabel(r'$\text{Recall}$')
+    axs[axs_row].yaxis.set_ticks_position('both')
+    axs[axs_row].set_xticklabels(['', '', 'Within groups', '', '', '', 'Between groups', ''])
+    #axs[axs_row].set_ylim(bottom=0, top=1.1)
+    axs[axs_row].legend(*zip(*labels), loc='lower left')
+    return fig
+
 
 # -------------------------------------------------------------------------
 # endregion
 # -------------------------------------------------------------------------
 
 
-# ----------------------------------------------------------------------------
+# ------------------------------------------------------------------------
+# region MAIN
+# ------------------------------------------------------------------------
 
-# Save figures?
+# Read shell inputs (if provided)
+fdr = False  # FDR-corrected results
+debug_mode = False
 save_figures = True
+argv = sys.argv
+if len(argv) == 1:
+    print('\nERROR: no path provided.\n')
+if len(argv) >= 2:
+    traj_dir = str(argv[1])
+    if not os.path.isdir(traj_dir):
+        traj_dir = os.path.join('../..', traj_dir)
+if len(argv) >= 3:
+    fdr = int(argv[2])
+if len(argv) >= 4:
+    debug_mode = int(argv[3])
+if len(argv) >= 5:
+    save_figures = int(argv[4])
+if len(argv) >= 6:
+    print('\nWARNING: too many parameters provided.\n')
 
-# Choose whether to use FDR-corrected results or not
-fdr = False
-
-# Choose folder
-traj_dir = os.path.join(
-    '..\\..\\..\\Information network inference\\trajectories',
-    'BA_GC_on_VAR_200nodes_1000_and_10000samples_m1_coupling0.1')
+# Load DataFrame
+if fdr:
+    df = pd.read_pickle(os.path.join(traj_dir, 'postprocessing_fdr.pkl'))
+else:
+    df = pd.read_pickle(os.path.join(traj_dir, 'postprocessing.pkl'))
+# Initialise empty figure and axes lists
+fig_list = []
 
 # Set up plot style
 # use latex based font rendering
@@ -6150,8 +6453,6 @@ mpl.rcParams['errorbar.capsize'] = 3
 mpl.rcParams['legend.fontsize'] = 8
 mpl.rcParams['legend.labelspacing'] = 0.5  #0.5 default
 mpl.rcParams['legend.handletextpad'] = 0.8  #0.8 default
-
-
 #### SAVING FIGURES
 ## the default savefig params can be different from the display params
 ## e.g., you may want a higher resolution, or to make the figure
@@ -6173,7 +6474,6 @@ mpl.rcParams['legend.handletextpad'] = 0.8  #0.8 default
                                 ## transparent background by default
 #savefig.frameon : True			## enable frame of figure when saving
 #savefig.orientation : portrait	## Orientation of saved figure
-
 # Colours
 colors_tab = [
     '#1f77b4',
@@ -6208,9 +6508,7 @@ colors_petroff = [
     '#859795',
     '#e9d043',
     '#ad5b50']
-
 colors_default = colors_petroff
-
 # Markers
 markers_default = ['x', 'o', '^', 's', 'D', 'v', 'h', '*']
 cycler_default = cycler(
@@ -6218,16 +6516,6 @@ cycler_default = cycler(
     marker=markers_default)
 #    scatter.marker=markers_default)
 
-
-# Load DataFrame
-if fdr:
-    df = pd.read_pickle(os.path.join(traj_dir, 'postprocessing_fdr.pkl'))
-else:
-    df = pd.read_pickle(os.path.join(traj_dir, 'postprocessing.pkl'))
-
-
-# Initialise empty figure and axes lists
-fig_list = []
 
 # -------------------------------------------------------------------------
 # region Network Neuroscience validation paper (Random Erdos-Renyi)
@@ -6273,6 +6561,50 @@ fig_list = []
 # -------------------------------------------------------------------------
 # endregion
 # -------------------------------------------------------------------------
+
+
+
+# -------------------------------------------------------------------------
+# region TE theoretical VAR1
+# -------------------------------------------------------------------------
+
+# Select value of interest (for those plots where only one value is used)
+# N_interest = 100
+# T_interest = 100000
+# weight_interest = 'fixed'
+# first_not_explored = 'bTE_empirical_causal_vars'
+# ignore_par = {
+#     'jidt_threads_n',
+#     'n_perm_max_stat',
+#     'n_perm_min_stat',
+#     'n_perm_max_seq',
+#     'n_perm_omnibus',
+#     }
+# parameters_explored = get_parameters_explored(first_not_explored, ignore_par)
+# # Get parameter ranges
+# nodes_n_range = np.unique(df['nodes_n']).astype(int)
+# samples_n_range = np.unique(df['samples_n']).astype(int)
+# weight_distributions = np.unique(df['weight_distribution'])
+# 
+# bTE_methods_legends = {
+#     'bTE_empirical_causal_vars' : 'Empirical',
+#     'bTE_theoretical_causal_vars' : 'Theoretical',
+#     'bTE_approx2_causal_vars' : 'Order 2',
+#     'bTE_approx4_causal_vars' : r'All motifs up to $\mathcal{O}(\|C\|^4)$',
+#     'bTE_motifs_acde_causal_vars' : 'Motifs a + c + d + e',
+#     'bTE_motifs_ae_causal_vars' : 'Motifs a + e',
+# }
+# 
+# WS_p_range = np.unique(df['WS_p']).astype(float)
+# fig_list.append(plot_bTE_vs_WS_p())
+# #fig_list.append(imshow_bTE_vs_indegree_source_target())
+# #fig_list.append(imshow_bTE_empirical_vs_indegree_source_target())
+# #fig_list.append(imshow_bTE_theoretical_vs_indegree_source_target())
+
+# -------------------------------------------------------------------------
+# endregion
+# -------------------------------------------------------------------------
+
 
 
 # -------------------------------------------------------------------------
@@ -6351,15 +6683,73 @@ fig_list = []
 # -------------------------------------------------------------------------
 
 
+
 # -------------------------------------------------------------------------
 # region Barabasi-Albert
+# -------------------------------------------------------------------------
+# # Select value of interest (for those plots where only one value is used)
+# alpha_interest = 0.001
+# N_interest = 200
+# T_interest = 10000
+# weight_interest = 'fixed'
+# algorithm_interest = 'mTE_greedy'
+# first_not_explored = 'precision'
+# # Ignore non-relevant explored parameters
+# ignore_par = {
+#     'jidt_threads_n',
+#     'n_perm_max_stat',
+#     'n_perm_min_stat',
+#     'n_perm_max_seq',
+#     'n_perm_omnibus',
+#     'weight_distribution'
+#     }
+# parameters_explored = get_parameters_explored(first_not_explored, ignore_par)
+# # Get parameter ranges
+# nodes_n_range = np.unique(df['nodes_n']).astype(int)
+# samples_n_range = np.unique(df['samples_n']).astype(int)
+# alpha_c_range = np.unique(df['p_value']).astype(float)
+# algorithms = np.unique(df['algorithm'])
+# weight_distributions = np.unique(df['weight_distribution'])
+# # Define dictionary of algorithm abbreviations
+# algorithm_names = {
+#     'bMI': 'Bivariate Mutual Information',
+#     'bMI_greedy': 'Bivariate Mutual Information',
+#     'bTE_greedy': 'Bivariate Transfer Entropy',
+#     'mTE_greedy': 'Multivariate Transfer Entropy',
+# }
+# 
+# fig_list.append(scatter_performance_vs_in_degree_real())
+# fig_list.append(scatter_performance_vs_out_degree_real())
+# fig_list.append(scatter_FP_vs_in_degree_real())
+# #fig_list.append(plot_performance_vs_N_scatter())
+# #fig_list.append(scatter_performance_vs_omnibus_TE())
+# fig_list.append(scatter_in_degree_inferred_vs_real())
+# fig_list.append(scatter_out_degree_inferred_vs_real())
+# fig_list.append(histogram_in_degree_inferred_vs_real())
+# fig_list.append(histogram_out_degree_inferred_vs_real())
+# fig_list.append(loglog_distributions_in_degree_inferred_vs_real())
+# fig_list.append(loglog_distributions_out_degree_inferred_vs_real())
+# fig_list.append(scatter_in_degree_assortativity_inferred_vs_real())
+# fig_list.append(scatter_out_degree_assortativity_inferred_vs_real())
+# fig_list.append(plot_rich_club_in_degrees_inferred_vs_real())
+# fig_list.append(plot_rich_club_out_degrees_inferred_vs_real())
+# fig_list.append(histogram_reciprocity_inferred_vs_real())
+# fig_list.append(histogram_overall_reciprocity_inferred_vs_real())
+
+# -------------------------------------------------------------------------
+# endregion
+# -------------------------------------------------------------------------
+
+
+
+# -------------------------------------------------------------------------
+# region Stochastic Block Model
 # -------------------------------------------------------------------------
 
 # Select value of interest (for those plots where only one value is used)
 alpha_interest = 0.001
-N_interest = 200
+N_interest = 50
 T_interest = 10000
-weight_interest = 'fixed'
 algorithm_interest = 'mTE_greedy'
 first_not_explored = 'precision'
 # Ignore non-relevant explored parameters
@@ -6377,7 +6767,6 @@ nodes_n_range = np.unique(df['nodes_n']).astype(int)
 samples_n_range = np.unique(df['samples_n']).astype(int)
 alpha_c_range = np.unique(df['p_value']).astype(float)
 algorithms = np.unique(df['algorithm'])
-weight_distributions = np.unique(df['weight_distribution'])
 # Define dictionary of algorithm abbreviations
 algorithm_names = {
     'bMI': 'Bivariate Mutual Information',
@@ -6385,71 +6774,15 @@ algorithm_names = {
     'bTE_greedy': 'Bivariate Transfer Entropy',
     'mTE_greedy': 'Multivariate Transfer Entropy',
 }
-
-fig_list.append(scatter_performance_vs_in_degree_real())
-fig_list.append(scatter_performance_vs_out_degree_real())
-fig_list.append(scatter_FP_vs_in_degree_real())
-#fig_list.append(plot_performance_vs_N_scatter())
-#fig_list.append(scatter_performance_vs_omnibus_TE())
-fig_list.append(scatter_in_degree_inferred_vs_real())
-fig_list.append(scatter_out_degree_inferred_vs_real())
-fig_list.append(histogram_in_degree_inferred_vs_real())
-fig_list.append(histogram_out_degree_inferred_vs_real())
-fig_list.append(loglog_distributions_in_degree_inferred_vs_real())
-fig_list.append(loglog_distributions_out_degree_inferred_vs_real())
-fig_list.append(scatter_in_degree_assortativity_inferred_vs_real())
-fig_list.append(scatter_out_degree_assortativity_inferred_vs_real())
-fig_list.append(plot_rich_club_in_degrees_inferred_vs_real())
-fig_list.append(plot_rich_club_out_degrees_inferred_vs_real())
-fig_list.append(histogram_reciprocity_inferred_vs_real())
-fig_list.append(histogram_overall_reciprocity_inferred_vs_real())
-
+fig_list.append(violin_plot_SBM_precision())
+fig_list.append(violin_plot_SBM_recall())
 
 # -------------------------------------------------------------------------
 # endregion
 # -------------------------------------------------------------------------
 
 
-# -------------------------------------------------------------------------
-# region TE theoretical VAR1
-# -------------------------------------------------------------------------
 
-# Select value of interest (for those plots where only one value is used)
-# N_interest = 100
-# T_interest = 100000
-# weight_interest = 'fixed'
-# first_not_explored = 'bTE_empirical_causal_vars'
-# ignore_par = {
-#     'jidt_threads_n',
-#     'n_perm_max_stat',
-#     'n_perm_min_stat',
-#     'n_perm_max_seq',
-#     'n_perm_omnibus',
-#     }
-# parameters_explored = get_parameters_explored(first_not_explored, ignore_par)
-# # Get parameter ranges
-# nodes_n_range = np.unique(df['nodes_n']).astype(int)
-# samples_n_range = np.unique(df['samples_n']).astype(int)
-# weight_distributions = np.unique(df['weight_distribution'])
-# 
-# bTE_methods_legends = {
-#     'bTE_empirical_causal_vars' : 'Empirical',
-#     'bTE_theoretical_causal_vars' : 'Theoretical',
-#     'bTE_approx2_causal_vars' : 'Order 2',
-#     'bTE_approx4_causal_vars' : r'All motifs up to $\mathcal{O}(\|C\|^4)$',
-#     'bTE_motifs_acde_causal_vars' : 'Motifs a + c + d + e',
-#     'bTE_motifs_ae_causal_vars' : 'Motifs a + e',
-# }
-# 
-# WS_p_range = np.unique(df['WS_p']).astype(float)
-# fig_list.append(plot_bTE_vs_WS_p())
-# #fig_list.append(imshow_bTE_vs_indegree_source_target())
-# #fig_list.append(imshow_bTE_empirical_vs_indegree_source_target())
-# #fig_list.append(imshow_bTE_theoretical_vs_indegree_source_target())
-
-# -------------------------------------------------------------------------
-# endregion
-# -------------------------------------------------------------------------
 
 
 # ----------------------------------------------------------------------------

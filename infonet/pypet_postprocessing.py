@@ -29,135 +29,214 @@ def performance_measures():
     # by setting the elements on the diagonal to NaN
     np.fill_diagonal(adjacency_matrices_sum, np.NaN)
     # Find true positives
-    true_pos_matrix = adjacency_matrices_sum == 2
-    true_pos = true_pos_matrix.sum(axis=0)
-    true_pos_n = true_pos.sum()
+    TP_matrix = adjacency_matrices_sum == 2
+    TP_source = TP_matrix.sum(axis=1)
+    TP_target = TP_matrix.sum(axis=0)
+    TP = TP_target.sum()
     # Find true negatives
-    true_neg_matrix = adjacency_matrices_sum == 0
-    true_neg = true_neg_matrix.sum(axis=0)
-    true_neg_n = true_neg.sum()
+    TN_matrix = adjacency_matrices_sum == 0
+    TN_source = TN_matrix.sum(axis=1)
+    TN_target = TN_matrix.sum(axis=0)
+    TN = TN_target.sum()
     # Find false positives
-    false_pos_matrix = adjacency_matrices_diff == -1
-    false_pos = false_pos_matrix.sum(axis=0)
-    false_pos_n = false_pos.sum()
+    FP_matrix = adjacency_matrices_diff == -1
+    FP_source = FP_matrix.sum(axis=1)
+    FP_target = FP_matrix.sum(axis=0)
+    FP = FP_target.sum()
     # Find false negatives
-    false_neg_matrix = adjacency_matrices_diff == 1
-    false_neg = false_neg_matrix.sum(axis=0)
-    false_neg_n = false_neg.sum()
+    FN_matrix = adjacency_matrices_diff == 1
+    FN_source = FN_matrix.sum(axis=1)
+    FN_target = FN_matrix.sum(axis=0)
+    FN = FN_target.sum()
     # Sanity check
-    assert (true_pos_n + true_neg_n + false_pos_n + false_neg_n
-            == nodes_n * (nodes_n - 1))
+    assert (TP + TN + FP + FN == nodes_n * (nodes_n - 1))
+    # Compute TP, TN + FP, FN for stochastic block model
+    if traj.par.topology.initial.model == 'planted_partition':
+        partitions_n = traj.par.topology.initial.partitions_n
+        group_size = int(nodes_n / partitions_n)
+        # TP
+        TP_within = np.nansum(np.array(
+            [TP_matrix[i:i+group_size, i:i+group_size]
+             for i in range(0, nodes_n, group_size)]).flatten())
+        TP_copy = TP_matrix.copy().astype(float)
+        for i in range(0, nodes_n, group_size):
+            TP_copy[i:i+group_size, i:i+group_size] = np.nan
+        TP_between = np.nansum(TP_copy[~np.isnan(TP_copy)].flatten())
+        assert TP_within + TP_between == np.nansum(TP_matrix)
+        # TN
+        TN_within = np.nansum(np.array(
+            [TN_matrix[i:i+group_size, i:i+group_size]
+             for i in range(0, nodes_n, group_size)]).flatten())
+        TN_copy = TN_matrix.copy().astype(float)
+        for i in range(0, nodes_n, group_size):
+            TN_copy[i:i+group_size, i:i+group_size] = np.nan
+        TN_between = np.nansum(TN_copy[~np.isnan(TN_copy)].flatten())
+        assert TN_within + TN_between == np.nansum(TN_matrix)
+        # FP
+        FP_within = np.nansum(np.array(
+            [FP_matrix[i:i+group_size, i:i+group_size]
+             for i in range(0, nodes_n, group_size)]).flatten())
+        FP_copy = FP_matrix.copy().astype(float)
+        for i in range(0, nodes_n, group_size):
+            FP_copy[i:i+group_size, i:i+group_size] = np.nan
+        FP_between = np.nansum(FP_copy[~np.isnan(FP_copy)].flatten())
+        assert FP_within + FP_between == np.nansum(FP_matrix)
+        # FN
+        FN_within = np.nansum(np.array(
+            [FN_matrix[i:i+group_size, i:i+group_size]
+             for i in range(0, nodes_n, group_size)]).flatten())
+        FN_copy = FN_matrix.copy().astype(float)
+        for i in range(0, nodes_n, group_size):
+            FN_copy[i:i+group_size, i:i+group_size] = np.nan
+        FN_between = np.nansum(FN_copy[~np.isnan(FN_copy)].flatten())
+        assert FN_within + FN_between == np.nansum(FN_matrix)
     # Compute classifier precision
-    if true_pos_n + false_pos_n > 0:
-        df.loc[run_name, 'precision'] = true_pos_n / (
-            true_pos_n + false_pos_n)
+    if TP + FP > 0:
+        df.loc[run_name, 'precision'] = TP / (TP + FP)
     else:
         print('WARNING: No links inferred: cannot compute precision')
         df.loc[run_name, 'precision'] = np.NaN
     # Compute target-wise precision
     precision_per_target = np.full(nodes_n, np.nan)
     for node in range(nodes_n):
-        if true_pos[node] + false_pos[node] > 0:
-            precision_per_target[node] = (
-                true_pos[node] / (true_pos[node] + false_pos[node]))
+        if TP_target[node] + FP_target[node] > 0:
+            precision_per_target[node] = TP_target[node] / (
+                TP_target[node] + FP_target[node])
     df.loc[run_name, 'precision_per_target'] = precision_per_target
+    # Compute source-wise precision
+    precision_per_source = np.full(nodes_n, np.nan)
+    for node in range(nodes_n):
+        if TP_source[node] + FP_source[node] > 0:
+            precision_per_source[node] = TP_source[node] / (
+                TP_source[node] + FP_source[node])
+    df.loc[run_name, 'precision_per_source'] = precision_per_source
+    # Compute precision on links within/between groups
+    if TP_within + FP_within > 0:
+        df.loc[run_name, 'precision_within_groups'] = (
+            TP_within / (TP_within + FP_within))
+    if TP_between + FP_between > 0:
+        df.loc[run_name, 'precision_between_groups'] = (
+            TP_between / (TP_between + FP_between))
     # Compute classifier recall
-    if true_pos_n + false_neg_n > 0:
-        df.loc[run_name, 'recall'] = true_pos_n / (
-            true_pos_n + false_neg_n)
+    if TP + FN > 0:
+        df.loc[run_name, 'recall'] = TP / (TP + FN)
     else:
         print('WARNING: The real network is empty: cannot compute recall')
         df.loc[run_name, 'recall'] = np.NaN
     # Compute target-wise recall
     recall_per_target = np.full(nodes_n, np.nan)
     for node in range(nodes_n):
-        if true_pos[node] + false_neg[node] > 0:
-            recall_per_target[node] = (
-                true_pos[node] / (true_pos[node] + false_neg[node]))
+        if TP_target[node] + FN_target[node] > 0:
+            recall_per_target[node] = TP_target[node] / (
+                TP_target[node] + FN_target[node])
     df.loc[run_name, 'recall_per_target'] = recall_per_target
+    # Compute source-wise recall
+    recall_per_source = np.full(nodes_n, np.nan)
+    for node in range(nodes_n):
+        if TP_source[node] + FN_source[node] > 0:
+            recall_per_source[node] = TP_source[node] / (
+                TP_source[node] + FN_source[node])
+    df.loc[run_name, 'recall_per_source'] = recall_per_source
+    # Compute recall on links within/between groups
+    if TP_within + FN_within > 0:
+        df.loc[run_name, 'recall_within_groups'] = (
+            TP_within / (TP_within + FN_within))
+    if TP_between + FN_between > 0:
+        df.loc[run_name, 'recall_between_groups'] = (
+            TP_between / (TP_between + FN_between))
     # Compute classifier specificity and FPR
-    if true_neg_n + false_pos_n > 0:
-        df.loc[run_name, 'specificity'] = true_neg_n / (
-            (true_neg_n + false_pos_n))
-        df.loc[run_name, 'false_pos_rate'] = false_pos_n / (
-            (true_neg_n + false_pos_n))
+    if TN + FP > 0:
+        df.loc[run_name, 'specificity'] = TN / (TN + FP)
+        df.loc[run_name, 'FP_rate'] = FP / (TN + FP)
     else:
         print('WARNING: The real network is full: cannot compute'
               'specificity and false positive rate')
         df.loc[run_name, 'specificity'] = np.NaN
-        df.loc[run_name, 'false_pos_rate'] = np.NaN
+        df.loc[run_name, 'FP_rate'] = np.NaN
     # Compute target-wise specificity and FPR
     specificity_per_target = np.full(nodes_n, np.nan)
-    false_pos_rate_per_target = np.full(nodes_n, np.nan)
+    FP_rate_per_target = np.full(nodes_n, np.nan)
     for node in range(nodes_n):
-        if true_neg[node] + false_pos[node] > 0:
-            specificity_per_target[node] = (
-                true_neg[node] / (true_neg[node] + false_pos[node]))
-            false_pos_rate_per_target[node] = (
-                false_pos[node] / (true_neg[node] + false_pos[node]))
+        if TN_target[node] + FP_target[node] > 0:
+            specificity_per_target[node] = TN_target[node] / (
+                TN_target[node] + FP_target[node])
+            FP_rate_per_target[node] = FP_target[node] / (
+                TN_target[node] + FP_target[node])
     df.loc[run_name, 'specificity_per_target'] = specificity_per_target
-    df.loc[run_name, 'false_pos_rate_per_target'] = (
-        false_pos_rate_per_target)
+    df.loc[run_name, 'FP_rate_per_target'] = (
+        FP_rate_per_target)
+    # Compute source-wise specificity and FPR
+    specificity_per_source = np.full(nodes_n, np.nan)
+    FP_rate_per_source = np.full(nodes_n, np.nan)
+    for node in range(nodes_n):
+        if TN_source[node] + FP_source[node] > 0:
+            specificity_per_source[node] = TN_source[node] / (
+                TN_source[node] + FP_source[node])
+            FP_rate_per_source[node] = FP_source[node] / (
+                TN_source[node] + FP_source[node])
+    df.loc[run_name, 'specificity_per_source'] = specificity_per_source
+    df.loc[run_name, 'FP_rate_per_source'] = (
+        FP_rate_per_source)
 
     # Compute false pos rate at taget level (tFPR)
-    df.loc[run_name, 'incorrect_target_rate'] = (false_pos > 0).mean()
+    df.loc[run_name, 'incorrect_target_rate'] = (FP_target > 0).mean()
 
     #     # Compute performance per distance
     #     nn_max = np.floor(nodes_n / 2).astype(int)
     #     precision_per_distance = np.full(nn_max, np.NaN)
     #     recall_per_distance = np.full(nn_max, np.NaN)
     #     specificity_per_distance = np.full(nn_max, np.NaN)
-    #     false_pos_rate_per_distance = np.full(nn_max, np.NaN)
+    #     FP_rate_per_distance = np.full(nn_max, np.NaN)
     #     for nn in range(1, nn_max + 1):
-    #         true_pos_diag = np.concatenate((
-    #             true_pos_matrix.diagonal(nn),
-    #             true_pos_matrix.diagonal(-nodes_n + nn),
-    #             true_pos_matrix.diagonal(nodes_n - nn),
-    #             true_pos_matrix.diagonal(-nn),
+    #         TP_diag = np.concatenate((
+    #             TP_matrix.diagonal(nn),
+    #             TP_matrix.diagonal(-nodes_n + nn),
+    #             TP_matrix.diagonal(nodes_n - nn),
+    #             TP_matrix.diagonal(-nn),
     #             ))
-    #         assert true_pos_diag.shape[0] == nodes_n * 2
-    #         false_pos_diag = np.concatenate((
-    #             false_pos_matrix.diagonal(nn),
-    #             false_pos_matrix.diagonal(-nodes_n + nn),
-    #             false_pos_matrix.diagonal(nodes_n - nn),
-    #             false_pos_matrix.diagonal(-nn),
+    #         assert TP_diag.shape[0] == nodes_n * 2
+    #         FP_diag = np.concatenate((
+    #             FP_matrix.diagonal(nn),
+    #             FP_matrix.diagonal(-nodes_n + nn),
+    #             FP_matrix.diagonal(nodes_n - nn),
+    #             FP_matrix.diagonal(-nn),
     #             ))
-    #         assert false_pos_diag.shape[0] == nodes_n * 2
-    #         true_neg_diag = np.concatenate((
-    #             true_neg_matrix.diagonal(nn),
-    #             true_neg_matrix.diagonal(-nodes_n + nn),
-    #             true_neg_matrix.diagonal(nodes_n - nn),
-    #             true_neg_matrix.diagonal(-nn),
+    #         assert FP_diag.shape[0] == nodes_n * 2
+    #         TN_diag = np.concatenate((
+    #             TN_matrix.diagonal(nn),
+    #             TN_matrix.diagonal(-nodes_n + nn),
+    #             TN_matrix.diagonal(nodes_n - nn),
+    #             TN_matrix.diagonal(-nn),
     #             ))
-    #         assert true_neg_diag.shape[0] == nodes_n * 2
-    #         false_neg_diag = np.concatenate((
-    #             false_neg_matrix.diagonal(nn),
-    #             false_neg_matrix.diagonal(-nodes_n + nn),
-    #             false_neg_matrix.diagonal(nodes_n - nn),
-    #             false_neg_matrix.diagonal(-nn),
+    #         assert TN_diag.shape[0] == nodes_n * 2
+    #         FN_diag = np.concatenate((
+    #             FN_matrix.diagonal(nn),
+    #             FN_matrix.diagonal(-nodes_n + nn),
+    #             FN_matrix.diagonal(nodes_n - nn),
+    #             FN_matrix.diagonal(-nn),
     #             ))
-    #         assert false_neg_diag.shape[0] == nodes_n * 2
-    #         true_pos_diag_n = true_pos_diag.sum()
-    #         false_pos_diag_n = false_pos_diag.sum()
-    #         true_neg_diag_n = true_neg_diag.sum()
-    #         false_neg_diag_n = false_neg_diag.sum()
-    #         if true_pos_diag_n + false_pos_diag_n > 0:
+    #         assert FN_diag.shape[0] == nodes_n * 2
+    #         TP_diag_n = TP_diag.sum()
+    #         FP_diag_n = FP_diag.sum()
+    #         TN_diag_n = TN_diag.sum()
+    #         FN_diag_n = FN_diag.sum()
+    #         if TP_diag_n + FP_diag_n > 0:
     #             precision_per_distance[nn - 1] = (
-    #                 true_pos_diag_n / (true_pos_diag_n + false_pos_diag_n))
-    #         if true_pos_diag_n + false_neg_diag_n > 0:
+    #                 TP_diag_n / (TP_diag_n + FP_diag_n))
+    #         if TP_diag_n + FN_diag_n > 0:
     #             recall_per_distance[nn - 1] = (
-    #                 true_pos_diag_n / (true_pos_diag_n + false_neg_diag_n))
-    #         if true_neg_diag_n + false_pos_diag_n > 0:
+    #                 TP_diag_n / (TP_diag_n + FN_diag_n))
+    #         if TN_diag_n + FP_diag_n > 0:
     #             specificity_per_distance[nn - 1] = (
-    #                 true_neg_diag_n / (true_neg_diag_n + false_pos_diag_n))
-    #             false_pos_rate_per_distance[nn - 1] = (
-    #                 false_pos_diag_n / (true_neg_diag_n + false_pos_diag_n))
+    #                 TN_diag_n / (TN_diag_n + FP_diag_n))
+    #             FP_rate_per_distance[nn - 1] = (
+    #                 FP_diag_n / (TN_diag_n + FP_diag_n))
     #     df.loc[run_name, 'precision_per_distance'] = precision_per_distance
     #     df.loc[run_name, 'recall_per_distance'] = recall_per_distance
     #     df.loc[run_name, 'specificity_per_distance'] = (
     #         specificity_per_distance)
-    #     df.loc[run_name, 'false_pos_rate_per_distance'] = (
-    #         false_pos_rate_per_distance)
+    #     df.loc[run_name, 'FP_rate_per_distance'] = (
+    #         FP_rate_per_distance)
     # 
     #     def tricode(G, v, u, w):
     #         """Returns the integer code of the given triad.
@@ -277,20 +356,20 @@ def performance_measures():
     #             # links_real = list(G.edges())
     #             # Get all potential links in the motif
     #             links_all = np.asarray(list(itertools.permutations(tpl, 2)))
-    #             true_pos_motif_n = (
-    #                 true_pos_matrix[links_all[:, 0], links_all[:, 1]].sum())
-    #             true_neg_motif_n = (
-    #                 true_neg_matrix[links_all[:, 0], links_all[:, 1]].sum())
-    #             false_pos_motif_n = (
-    #                 false_pos_matrix[links_all[:, 0], links_all[:, 1]].sum())
-    #             false_neg_motif_n = (
-    #                 false_neg_matrix[links_all[:, 0], links_all[:, 1]].sum())
-    #             if true_pos_motif_n + false_pos_motif_n > 0:
+    #             TP_motif_n = (
+    #                 TP_matrix[links_all[:, 0], links_all[:, 1]].sum())
+    #             TN_motif_n = (
+    #                 TN_matrix[links_all[:, 0], links_all[:, 1]].sum())
+    #             FP_motif_n = (
+    #                 FP_matrix[links_all[:, 0], links_all[:, 1]].sum())
+    #             FN_motif_n = (
+    #                 FN_matrix[links_all[:, 0], links_all[:, 1]].sum())
+    #             if TP_motif_n + FP_motif_n > 0:
     #                 precision_per_motif[motif_name].append(
-    #                     true_pos_motif_n / (true_pos_motif_n + false_pos_motif_n))
-    #             if true_pos_motif_n + false_neg_motif_n > 0:
+    #                     TP_motif_n / (TP_motif_n + FP_motif_n))
+    #             if TP_motif_n + FN_motif_n > 0:
     #                 recall_per_motif[motif_name].append(
-    #                     true_pos_motif_n / (true_pos_motif_n + false_neg_motif_n))
+    #                     TP_motif_n / (TP_motif_n + FN_motif_n))
     #         # Average over occurences of the same motif
     #         precision_per_motif[motif_name] = np.nanmean(
     #             precision_per_motif[motif_name])
@@ -323,7 +402,7 @@ def delay_error():
     delay_matrix_inferred[np.isnan(delay_matrix_inferred)] = 0.
     # Compute mean absolute delay error over all inferred links (if it's
     # a false positive, the inferred lag is counted as error).
-    if (true_pos_n + false_neg_n) > 0:
+    if (TP + FN) > 0:
         abs_diff = np.abs(delay_matrix_real - delay_matrix_inferred)
         delay_error_mean = np.mean(abs_diff[delay_matrix_inferred > 0])
     else:
@@ -972,7 +1051,7 @@ def attractor_stuck():
 # ------------------------------------------------------------------------
 
 # Read shell inputs (if provided)
-fdr = False
+fdr = False  # FDR-corrected results
 debug_mode = False
 save_results = True
 argv = sys.argv
@@ -1018,15 +1097,27 @@ df = pd.DataFrame(
         'precision',
         'recall',
         'specificity',
-        'false_pos_rate',
+        'FP_rate',
         'precision_per_target',
         'recall_per_target',
         'specificity_per_target',
-        'false_pos_rate_per_target',
+        'FP_rate_per_target',
+        'precision_per_source',
+        'recall_per_source',
+        'specificity_per_source',
+        'FP_rate_per_source',
+        'precision_within_groups',
+        'recall_within_groups',
+        #'specificity_within_groups',
+        #'FP_rate_within_groups',
+        'precision_between_groups',
+        'recall_between_groups',
+        #'specificity_between_groups',
+        #'FP_rate_between_groups',
         'precision_per_distance',
         'recall_per_distance',
         'specificity_per_distance',
-        'false_pos_rate_per_distance',
+        'FP_rate_per_distance',
         'precision_per_motif',
         'recall_per_motif',
         'incorrect_target_rate',
@@ -1244,23 +1335,23 @@ for run_name in traj.f_get_run_names():
     # -------------------------------------------------------------------------
 
     # Boolean classification performance measures
-    true_pos_n = None
-    false_neg_n = None
+    TP = None
+    FN = None
     performance_measures()
-    
+
     # Delay error
     # delay_error()
-    
+
     # Information-theoretic measures
     VAR_reduced_form = None
     # info_theoretic_measures()
-    
+
     # Spectral radius
     # spectral_radius()
-    
+
     # Check if the system got stuck on attractors
     # attractor_stuck()
-    
+
     # Compute network properties
     # network_properties()
 
