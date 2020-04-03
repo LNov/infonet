@@ -51,3 +51,7 @@ test/htmlcov
 test/output/*
 # exception to the rule
 test/output/.gitkeep
+
+# settings dictionary #
+#######################
+pypet_settings.pkl

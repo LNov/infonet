@@ -190,15 +190,6 @@ def infer_network(network_inference, time_series, parallel_target_analysis=False
         algorithm = network_inference.algorithm
         if algorithm in ['bMI_greedy', 'mMI_greedy', 'bTE_greedy', 'mTE_greedy']:
             # Set analysis options
-            if algorithm == 'bMI_greedy':
-                network_analysis = BivariateMI()
-            if algorithm == 'mMI_greedy':
-                network_analysis = MultivariateMI()
-            if algorithm == 'bTE_greedy':
-                network_analysis = BivariateTE()
-            if algorithm == 'mTE_greedy':
-                network_analysis = MultivariateTE()
-
             settings = {
                 'min_lag_sources': network_inference.min_lag_sources,
                 'max_lag_sources': network_inference.max_lag_sources,
@@ -235,6 +226,19 @@ def infer_network(network_inference, time_series, parallel_target_analysis=False
             #             key_last,
             #             traj[key])
             #         )
+
+            if algorithm == 'bMI_greedy':
+                network_analysis = BivariateMI()
+                settings['min_lag_sources'] = 0
+                settings['max_lag_sources'] = 0
+            if algorithm == 'mMI_greedy':
+                network_analysis = MultivariateMI()
+                settings['min_lag_sources'] = 0
+                settings['max_lag_sources'] = 0
+            if algorithm == 'bTE_greedy':
+                network_analysis = BivariateTE()
+            if algorithm == 'mTE_greedy':
+                network_analysis = MultivariateTE()
 
             if parallel_target_analysis:
                 # Use SCOOP to create a generator of map results, each
