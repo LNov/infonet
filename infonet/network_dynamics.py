@@ -170,12 +170,19 @@ def generate_network(topology):
     # Define parameter options dictionaries
     topology_models = pd.DataFrame()
     topology_models['Description'] = pd.Series({
-        'ER_n_p': 'Erdős–Rényi model with a fixed number of nodes and link probability',
+        'ER_n_p': 'Erdős–Rényi model with a fixed number of nodes and '
+                  'link probability',
         'ER_n_m': 'Erdős–Rényi model with a fixed number of nodes and links',
-        'ER_n_in': 'Erdős–Rényi model with a fixed number of nodes and expected in-degree',
+        'ER_n_in': 'Erdős–Rényi model with a fixed number of nodes and '
+                   'expected in-degree',
         'WS': 'Watts–Strogatz model',
         'BA': 'Barabási–Albert model',
         'planted_partition': 'Planted partition model',
+        'planted_partition_fixed_links_n': (
+            'Variation on the planted partition model, with a fixed number of '
+            'links in total and fixed number of links between modules, rather '
+            'than probabilities of forming links (the number of links within '
+            'is the difference links_total - links_out).'),
         'ring': 'Ring model',
         'lattice': 'Regular lattice model',
         'star': 'Star model',
@@ -189,6 +196,8 @@ def generate_network(topology):
         'WS': ['nodes_n', 'WS_k', 'WS_p'],
         'BA': ['nodes_n', 'BA_m'],
         'planted_partition': ['nodes_n', 'partitions_n', 'p_in', 'p_out'],
+        'planted_partition_fixed_links_n': [
+            'nodes_n', 'partitions_n', 'links_total', 'links_out'],
     })
     try:
         # Ensure that a topology model has been specified
@@ -263,7 +272,7 @@ def generate_network(topology):
             nodes_n = topology.nodes_n
             BA_m = topology.BA_m
             # Generate network
-            #return directed_barabasi_albert_graph(
+            # return directed_barabasi_albert_graph(
             return nx.barabasi_albert_graph(
                 nodes_n,
                 BA_m
@@ -272,16 +281,45 @@ def generate_network(topology):
             # Read required parameters
             nodes_n = topology.nodes_n
             partitions_n = topology.partitions_n
+            group_size = int(nodes_n / partitions_n)
             p_in = topology.p_in
             p_out = topology.p_out
             # Generate network
             return nx.planted_partition_graph(
                 partitions_n,
-                int(nodes_n / partitions_n),
+                group_size,
                 p_in,
                 p_out,
                 directed=True
             )
+        elif model == 'planted_partition_fixed_links_n':
+            # Read required parameters
+            nodes_n = topology.nodes_n
+            partitions_n = topology.partitions_n
+            links_total = topology.links_total
+            links_out = topology.links_out
+            assert nodes_n % partitions_n == 0., 'nodes_n (={0}) must be a multiple of partitions_n (={1})'. format(nodes_n, partitions_n)
+            group_size = int(nodes_n / partitions_n)
+            assert links_total <= nodes_n, 'links_total (={0}) must be smaller than nodes_n (={1})'. format(links_total, nodes_n)
+            assert links_out <= nodes_n - group_size, 'links_out (={0}) must be smaller than nodes_n - group_size (={1})'. format(links_out, nodes_n - group_size)
+            links_in = links_total - links_out
+            # Generate network
+            A = np.zeros(shape=(nodes_n, nodes_n), dtype=int)
+            row_within = np.zeros(shape=(group_size))
+            row_within[:links_in] = 1
+            row_between = np.zeros(shape=(nodes_n - group_size))
+            row_between[:links_out] = 1
+            for row in range(nodes_n):
+                # permute links within group
+                row_within_perm = np.random.permutation(row_within)
+                # permute links between groups
+                row_between_perm = np.random.permutation(row_between)
+                # concatenate to obtain new permuted row with a fixed number
+                # of links within and between groups
+                row_perm = np.concatenate((row_within_perm, row_between_perm))
+                # apply circular shift to row to match group
+                A[row, :] = np.roll(row_perm, np.floor_divide(row, group_size) * group_size)
+            return nx.DiGraph(A)
         else:
             raise ParameterValue(
                 model,
