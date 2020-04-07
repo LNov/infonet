@@ -19,6 +19,7 @@ docs/_build
 
 # Logs and databases #
 ######################
+logs
 *.log
 *.swp
 .directory

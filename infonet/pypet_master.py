@@ -246,7 +246,7 @@ def main():
         #ncores=10,
         #freeze_input=True,
         use_scoop=True,
-        #wrap_mode=pypetconstants.WRAP_MODE_LOCAL,
+        wrap_mode=pypetconstants.WRAP_MODE_LOCAL,
         memory_cap=1,
         swap_cap=1
         #cpu_cap=30
