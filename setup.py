@@ -13,7 +13,7 @@ setup(
     description='Information dynamics and network structure',
     author='Leonardo Novelli',
     author_email='leonardo.novelli@sydney.edu.au',
-    url='https://github.com/LNov/info-net',
+    url='https://github.com/LNov/infonet',
     # long_description=long_description,
     classifiers=[
         "Programming Language :: Python",

@@ -51,7 +51,7 @@ def performance_measures():
     # Sanity check
     assert (TP + TN + FP + FN == nodes_n * (nodes_n - 1))
     # Compute TP, TN + FP, FN for stochastic block model
-    if traj.par.topology.initial.model == 'planted_partition':
+    if 'planted_partition' in traj.par.topology.initial.model:
         partitions_n = traj.par.topology.initial.partitions_n
         group_size = int(nodes_n / partitions_n)
         # TP
@@ -111,12 +111,13 @@ def performance_measures():
                 TP_source[node] + FP_source[node])
     df.loc[run_name, 'precision_per_source'] = precision_per_source
     # Compute precision on links within/between groups
-    if TP_within + FP_within > 0:
-        df.loc[run_name, 'precision_within_groups'] = (
-            TP_within / (TP_within + FP_within))
-    if TP_between + FP_between > 0:
-        df.loc[run_name, 'precision_between_groups'] = (
-            TP_between / (TP_between + FP_between))
+    if 'planted_partition' in traj.par.topology.initial.model:
+        if TP_within + FP_within > 0:
+            df.loc[run_name, 'precision_within_groups'] = (
+                TP_within / (TP_within + FP_within))
+        if TP_between + FP_between > 0:
+            df.loc[run_name, 'precision_between_groups'] = (
+                TP_between / (TP_between + FP_between))
     # Compute classifier recall
     if TP + FN > 0:
         df.loc[run_name, 'recall'] = TP / (TP + FN)
@@ -138,12 +139,13 @@ def performance_measures():
                 TP_source[node] + FN_source[node])
     df.loc[run_name, 'recall_per_source'] = recall_per_source
     # Compute recall on links within/between groups
-    if TP_within + FN_within > 0:
-        df.loc[run_name, 'recall_within_groups'] = (
-            TP_within / (TP_within + FN_within))
-    if TP_between + FN_between > 0:
-        df.loc[run_name, 'recall_between_groups'] = (
-            TP_between / (TP_between + FN_between))
+    if 'planted_partition' in traj.par.topology.initial.model:
+        if TP_within + FN_within > 0:
+            df.loc[run_name, 'recall_within_groups'] = (
+                TP_within / (TP_within + FN_within))
+        if TP_between + FN_between > 0:
+            df.loc[run_name, 'recall_between_groups'] = (
+                TP_between / (TP_between + FN_between))
     # Compute classifier specificity and FPR
     if TN + FP > 0:
         df.loc[run_name, 'specificity'] = TN / (TN + FP)
@@ -1353,7 +1355,7 @@ for run_name in traj.f_get_run_names():
     # attractor_stuck()
 
     # Compute network properties
-    # network_properties()
+    network_properties()
 
 # Reset trajectory to the default settings, to release its belief to
 # be the last run:
