@@ -21,7 +21,7 @@ settings = {}
 settings['topology.initial.model'] = 'planted_partition_fixed_links_n'
 # traj.parameters.f_get('topology.initial.model').v_comment = topology_models[
 #   'Description'].get(traj.parameters['topology.initial.model'])
-settings['topology.initial.nodes_n'] = 10  # np.arange(100, 100+1, 300).tolist()
+settings['topology.initial.nodes_n'] = 100  # np.arange(100, 100+1, 300).tolist()
 # settings['topology.initial.in_degree_expected'] = 3
 # settings['topology.initial.WS_k'] = 4
 # settings['topology.initial.WS_p'] = np.around(
@@ -61,7 +61,7 @@ settings['delay.initial.delay_self'] = 1
 # settings['node_dynamics.model'] = 'logistic_map'
 settings['node_dynamics.model'] = 'AR_gaussian_discrete'
 # settings['node_dynamics.model'] = 'boolean_random'
-settings['node_dynamics.samples_n'] = np.array([100]).tolist()
+settings['node_dynamics.samples_n'] = np.array([10000]).tolist()
 settings['node_dynamics.samples_transient_n'] = 100000
 settings['node_dynamics.replications'] = 1
 settings['node_dynamics.noise_std'] = 0.1
@@ -83,9 +83,9 @@ settings['network_inference.algorithm'] = [
     'mTE_greedy']
 settings['network_inference.min_lag_sources'] = 1
 settings['network_inference.max_lag_sources'] = 1
-#settings['network_inference.tau_sources'] = 1
+settings['network_inference.tau_sources'] = 1
 settings['network_inference.max_lag_target'] = 1
-#settings['network_inference.tau_target'] = 1
+settings['network_inference.tau_target'] = 1
 # settings['network_inference.cmi_estimator'] = 'JidtDiscreteCMI'
 settings['network_inference.cmi_estimator'] = 'JidtGaussianCMI'
 # settings['network_inference.cmi_estimator'] = 'JidtKraskovCMI'
@@ -110,7 +110,7 @@ settings['network_inference.p_value'] = 0.05
 # Parameters characterizing the repetitions of the same run
 # -------------------------------------------------------------------
 settings['repetition_i'] = (
-    np.arange(0, 1, step=1).tolist())  # Normally starts from 0
+    np.arange(0, 2, step=1).tolist())  # Normally starts from 0
 
 # ------------------------------------------------------------------
 

@@ -241,11 +241,11 @@ def main():
         log_config='DEFAULT',
         log_stdout=True,  # log everything that is printed, will make the log file HUGE
         filename=traj_dir,  # filename or just folder (name will be automatic in this case)
-        multiproc=False,
+        multiproc=True,
         #use_pool=True,
         #ncores=10,
         #freeze_input=True,
-        use_scoop=False,
+        use_scoop=True,
         #wrap_mode=pypetconstants.WRAP_MODE_LOCAL,
         memory_cap=1,
         swap_cap=1
