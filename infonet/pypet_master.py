@@ -20,6 +20,12 @@ def load_obj(path):
         return pickle.load(f)
 
 
+# Use pickle module to save dictionaries
+def save_obj(obj, file_dir, file_name):
+    with open(os.path.join(file_dir, file_name), 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+
 def information_network_inference(traj):
     """Runs Information Network inference
 
@@ -37,6 +43,14 @@ def information_network_inference(traj):
     # start_monotonic = time.monotonic()
     # start_perf_counter = time.perf_counter()
     # start_process_time = time.process_time()
+
+    # Print parameters for current run
+    parameters_explored = [str.split(par, '.').pop() for par in (
+        traj.f_get_explored_parameters())]
+    print('Current parameters:')
+    for par in parameters_explored:
+        print('{0} = {1}'.format(par, traj[par]))
+    print('\n\n')
 
     # Generate initial network
     G = network_dynamics.generate_network(traj.par.topology.initial)
@@ -308,8 +322,11 @@ def main():
     # )
     traj.f_explore(explore_dict)
 
-    # Store trajectory parameters to disk
+    # Save trajectory parameters in the output directory
     pypet_utils.print_traj_leaves(traj, 'parameters', 'traj_parameters.txt')
+    # And copy settings file to output directory too
+    save_obj(settings, traj_dir, 'pypet_settings.pkl')
+    print('\nSettings dictionary saved to {0}'.format(traj_dir))
 
     # Run the experiment
     env.run(information_network_inference)
