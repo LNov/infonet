@@ -1355,7 +1355,7 @@ for run_name in traj.f_get_run_names():
     # attractor_stuck()
 
     # Compute network properties
-    network_properties()
+    # network_properties()
 
 # Reset trajectory to the default settings, to release its belief to
 # be the last run:

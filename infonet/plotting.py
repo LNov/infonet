@@ -5180,11 +5180,31 @@ def scatter_performance_vs_in_degree_real():
             in_degree_real,
             precision_per_target,
             label='Precision')
-        # Scatter
+        # Plot mean values
+        mean_values = []
+        in_degree_real_unique = np.unique(in_degree_real)
+        for i in in_degree_real_unique:
+            mean_values.append(precision_per_target[in_degree_real == i].mean())
+        axs[axs_col].plot(
+            in_degree_real_unique,
+            mean_values,
+            label='Mean',
+            )
+        # Scatter recall
         axs[axs_col].scatter(
             in_degree_real,
             recall_per_target,
             label='Recall')
+        # Plot mean values
+        mean_values = []
+        in_degree_real_unique = np.unique(in_degree_real)
+        for i in in_degree_real_unique:
+            mean_values.append(recall_per_target[in_degree_real == i].mean())
+        axs[axs_col].plot(
+            in_degree_real_unique,
+            mean_values,
+            label='Mean',
+            )
         # Set axes properties
         axs[axs_col].set_xlabel(
             r'$\text{Real in-degree}$', horizontalalignment='right', x=1.0)
@@ -5195,74 +5215,6 @@ def scatter_performance_vs_in_degree_real():
         #axs[axs_col].set_xlim(left=0)
         #axs[axs_col].set_ylim(bottom=0)
         axs[axs_col].legend()
-    return fig
-
-
-def scatter_FP_vs_in_degree_real():
-    # Scatter plot FP vs real in-degree
-    # Subplots vertical: algorithms
-    subplots_v = len(algorithms)
-    subplots_h = 1
-    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
-    # Select data of interest
-    df_interest = df[parameters_explored + [
-        'in_degree_real',
-        'in_degree_inferred',
-        'precision_per_target',
-        'recall_per_target',
-        ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
-        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
-    # Choose which of the explored parameters to collect data over
-    parameters_to_average = {'repetition_i'}
-    for (axs_col, algorithm) in enumerate(algorithms):
-        # Group by algorithm and concatenate values into lists
-        df_aggregate = df_interest.groupby('algorithm').agg(
-            lambda x: x.tolist())
-        # Ensure that only the desired parameters are aggregated or averaged
-        df_keys_remaining = df_aggregate.columns.get_level_values(0)
-        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
-        # Set subplot title
-        axs[axs_col].set_title('{0}'.format(algorithm_names[algorithm]))
-        in_degree_real = np.concatenate(
-            df_aggregate.loc[algorithm].in_degree_real)
-        in_degree_inferred = np.concatenate(
-            df_aggregate.loc[algorithm].in_degree_inferred)
-        precision_per_target = np.concatenate(
-            df_aggregate.loc[algorithm].precision_per_target)
-        
-        precision_per_target[np.isnan(precision_per_target)] = 1.
-
-        #recall_per_target = np.concatenate(
-        #    df_aggregate.loc[algorithm].recall_per_target)
-        
-        FP = in_degree_inferred * (1 - precision_per_target)
-        
-        # Scatter FP vs in_degree
-        axs[axs_col].scatter(
-            in_degree_real,
-            FP,
-            label='FP')
-        # # Scatter
-        # axs[axs_col].scatter(
-        #     in_degree_real,
-        #     recall_per_target,
-        #     label='Recall')
-        # Set axes properties
-        axs[axs_col].set_xlabel(
-            r'$\text{Real in-degree}$', horizontalalignment='right', x=1.0)
-        axs[axs_col].set_ylabel(
-            r'$\text{FP}$')
-        # axs[axs_col].set_xscale('log')
-        axs[axs_col].yaxis.set_ticks_position('both')
-        #axs[axs_col].set_xlim(left=0)
-        #axs[axs_col].legend()
     return fig
 
 
@@ -5324,6 +5276,151 @@ def scatter_performance_vs_out_degree_real():
         #axs[axs_col].set_xlim(left=0)
         #axs[axs_col].set_ylim(bottom=0)
         axs[axs_col].legend()
+    return fig
+
+
+def scatter_FP_per_target_vs_in_degree_real():
+    # Scatter plot FP vs real in-degree
+    # Subplots vertical: algorithms
+    subplots_v = len(algorithms)
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'in_degree_real',
+        'in_degree_inferred',
+        'precision_per_target',
+        'recall_per_target',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    df_interest = df_interest.loc[
+        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
+    df_interest = df_interest.loc[
+        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    for (axs_col, algorithm) in enumerate(algorithms):
+        # Group by algorithm and concatenate values into lists
+        df_aggregate = df_interest.groupby('algorithm').agg(
+            lambda x: x.tolist())
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Set subplot title
+        axs[axs_col].set_title('{0}'.format(algorithm_names[algorithm]))
+        in_degree_real = np.concatenate(
+            df_aggregate.loc[algorithm].in_degree_real)
+        in_degree_inferred = np.concatenate(
+            df_aggregate.loc[algorithm].in_degree_inferred)
+        precision_per_target = np.concatenate(
+            df_aggregate.loc[algorithm].precision_per_target)
+        
+        precision_per_target[np.isnan(precision_per_target)] = 1.
+        
+        FP = in_degree_inferred * (1 - precision_per_target)
+        
+        curve_i = 0
+
+        # Scatter FP vs in_degree
+        axs[axs_col].scatter(
+            in_degree_real,
+            FP
+            )
+        # Plot mean values
+        mean_values = []
+        in_degree_real_unique = np.unique(in_degree_real)
+        for i in in_degree_real_unique:
+            mean_values.append(FP[in_degree_real == i].mean())
+        axs[axs_col].plot(
+            in_degree_real_unique,
+            mean_values,
+            label='Mean',
+            )
+        # Set axes properties
+        axs[axs_col].set_xlabel(
+            r'$\text{Real in-degree of target}$', horizontalalignment='right', x=1.0)
+        axs[axs_col].set_ylabel(
+            r'$\text{FP}$')
+        # axs[axs_col].set_xscale('log')
+        axs[axs_col].yaxis.set_ticks_position('both')
+        #axs[axs_col].set_xlim(left=0)
+        axs[axs_col].legend()
+    return fig
+
+
+def scatter_FP_per_source_vs_in_degree_real():
+    # Scatter plot FP vs real in-degree
+    # Subplots vertical: algorithms
+    subplots_v = len(algorithms)
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'in_degree_real',
+        'in_degree_inferred',
+        'precision_per_source',
+        'recall_per_source',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    df_interest = df_interest.loc[
+        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
+    df_interest = df_interest.loc[
+        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    for (axs_col, algorithm) in enumerate(algorithms):
+        # Group by algorithm and concatenate values into lists
+        df_aggregate = df_interest.groupby('algorithm').agg(
+            lambda x: x.tolist())
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Set subplot title
+        axs[axs_col].set_title('{0}'.format(algorithm_names[algorithm]))
+        in_degree_real = np.concatenate(
+            df_aggregate.loc[algorithm].in_degree_real)
+        in_degree_inferred = np.concatenate(
+            df_aggregate.loc[algorithm].in_degree_inferred)
+        precision_per_source = np.concatenate(
+            df_aggregate.loc[algorithm].precision_per_source)
+        
+        precision_per_source[np.isnan(precision_per_source)] = 1.
+
+        #recall_per_source = np.concatenate(
+        #    df_aggregate.loc[algorithm].recall_per_source)
+        
+        FP = in_degree_inferred * (1 - precision_per_source)
+        
+        # Scatter FP vs in_degree
+        axs[axs_col].scatter(
+            in_degree_real,
+            FP,
+            label='FP')
+        # Plot mean values
+        mean_values = []
+        in_degree_real_unique = np.unique(in_degree_real)
+        for i in in_degree_real_unique:
+            mean_values.append(FP[in_degree_real == i].mean())
+        axs[axs_col].plot(
+            in_degree_real_unique,
+            mean_values,
+            label='Mean',
+            )
+        # Set axes properties
+        axs[axs_col].set_xlabel(
+            r'$\text{Real in-degree of source}$', horizontalalignment='right', x=1.0)
+        axs[axs_col].set_ylabel(
+            r'$\text{FP}$')
+        # axs[axs_col].set_xscale('log')
+        axs[axs_col].yaxis.set_ticks_position('both')
+        #axs[axs_col].set_xlim(left=0)
+        #axs[axs_col].legend()
     return fig
 
 
@@ -6126,8 +6223,8 @@ def plot_rich_club_out_degrees_inferred_vs_real():
 # region Stochastic Block Model
 # -------------------------------------------------------------------------
 
-def violin_plot_SBM_precision_vs_nodes_n_TODO():
-    # Violin plot of precision within and between groups vs. nodes_n
+def violin_plot_SBM_precision_vs_links_out():
+    # Violin plot of precision within and between groups vs. links_out
     # Subplots vertical: algorithms
     subplots_v = len(algorithms)
     subplots_h = 1
@@ -6140,9 +6237,88 @@ def violin_plot_SBM_precision_vs_nodes_n_TODO():
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
     df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    #df_interest = df_interest.loc[
-    #    df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    for (axs_row, algorithm) in enumerate(algorithms):
+        # Set subplot title
+        axs[axs_row].set_title('{0}'.format(
+            algorithm_names[algorithm]))
+        # Select dataframe entries(i.e runs) with the same algorithm
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group and concatenate lists
+        df_aggregate = df_algorithm.groupby('links_out').agg(
+            lambda x: x.tolist())
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        precision_within_groups = [
+            df_aggregate.loc[links_out].precision_within_groups
+            for links_out in links_out_range]
+        precision_between_groups = [
+            df_aggregate.loc[links_out].precision_between_groups
+            for links_out in links_out_range]
+        # Violin plot of omnibus TE vs links_out
+        violin_within = axs[axs_row].violinplot(
+            precision_within_groups,
+            positions=links_out_range,
+            widths=0.4,#WS_p_range/2,
+            showmeans=False,
+            showextrema=False,
+            showmedians=False,
+            #points=100,
+            #bw_method=
+            )
+        violin_between = axs[axs_row].violinplot(
+            precision_between_groups,
+            positions=links_out_range,
+            widths=0.4,#WS_p_range/2,
+            showmeans=False,
+            showextrema=False,
+            showmedians=False,
+            #points=100,
+            #bw_method=
+            )
+        # Join mean values
+        mean_vals_within = [np.nanmean(df_aggregate.loc[links_out].precision_within_groups) for links_out in links_out_range]
+        axs[axs_row].plot(
+            links_out_range,
+            mean_vals_within,
+            '-o',
+            color='tab:blue',
+            label='Within groups')
+        mean_vals_between = [np.nanmean(df_aggregate.loc[links_out].precision_between_groups) for links_out in links_out_range]
+        axs[axs_row].plot(
+            links_out_range,
+            mean_vals_between,
+            '-o',
+            color='tab:orange',
+            label='Between groups')
+        # Set axes properties
+        axs[axs_row].set_xlabel(
+            r'$\text{Links between groups}$', horizontalalignment='right', x=1.0)
+        axs[axs_row].set_ylabel(
+            r'$\text{Precision}$')
+        axs[axs_row].yaxis.set_ticks_position('both')
+        axs[axs_row].set_ylim(bottom=0, top=1.1)
+        axs[axs_row].legend()
+    return fig
+
+
+def violin_plot_SBM_recall_vs_links_out():
+    # Violin plot of recall within and between groups vs. links_out
+    # Subplots vertical: algorithms
+    subplots_v = len(algorithms)
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'recall_within_groups',
+        'recall_between_groups',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -6155,49 +6331,61 @@ def violin_plot_SBM_precision_vs_nodes_n_TODO():
         df_algorithm = df_interest.loc[
             df_interest['algorithm'] == algorithm].drop('algorithm', 1)
         # Group and concatenate lists
-        df_aggregate = df_algorithm.groupby('nodes_n').agg(
+        df_aggregate = df_algorithm.groupby('links_out').agg(
             lambda x: x.tolist())
         # Ensure that only the desired parameters are aggregated or averaged
         df_keys_remaining = df_aggregate.columns.get_level_values(0)
         check_remaining_dimensions(df_keys_remaining, parameters_to_average)
-        precision_within_groups = [
-            df_aggregate.loc[nodes_n].precision_within_groups
-            for nodes_n in nodes_n_range]
-        #precision_within_groups = precision_within_groups[0]
-        print(precision_within_groups)
-        print(nodes_n_range)
-        # Violin plot of omnibus TE vs nodes_n
+        recall_within_groups = [
+            df_aggregate.loc[links_out].recall_within_groups
+            for links_out in links_out_range]
+        recall_between_groups = [
+            df_aggregate.loc[links_out].recall_between_groups
+            for links_out in links_out_range]
+        # Violin plot of omnibus TE vs links_out
         violin_within = axs[axs_row].violinplot(
-            precision_within_groups,
-            positions=nodes_n_range,
-            widths=1,#WS_p_range/2,
-            showmeans=True,
-            showextrema=True,
+            recall_within_groups,
+            positions=links_out_range,
+            widths=0.4,#WS_p_range/2,
+            showmeans=False,
+            showextrema=False,
             showmedians=False,
             #points=100,
             #bw_method=
             )
-        # # Only plot right-hand half of the violins
-        # for b in violin['bodies']:
-        #     if len(b.get_paths()) > 0:
-        #         m = np.nanmean(b.get_paths()[0].vertices[:, 0])
-        #         b.get_paths()[0].vertices[:, 0] = np.clip(
-        #             b.get_paths()[0].vertices[:, 0], m, np.inf)
-        #         b.set_color('tab:blue')
-        # # Join mean values
-        # mean_vals = [np.nanmean(np.concatenate(df_aggregate.loc[WS_p].TE_omnibus_empirical)) for WS_p in WS_p_range]
-        # axs[axs_row].plot(
-        #     WS_p_range,
-        #     mean_vals,
-        #     '-o',
-        #     color='tab:blue')
+        violin_between = axs[axs_row].violinplot(
+            recall_between_groups,
+            positions=links_out_range,
+            widths=0.4,#WS_p_range/2,
+            showmeans=False,
+            showextrema=False,
+            showmedians=False,
+            #points=100,
+            #bw_method=
+            )
+        # Join mean values
+        mean_vals_within = [np.nanmean(df_aggregate.loc[links_out].recall_within_groups) for links_out in links_out_range]
+        axs[axs_row].plot(
+            links_out_range,
+            mean_vals_within,
+            '-o',
+            color='tab:blue',
+            label='Within groups')
+        mean_vals_between = [np.nanmean(df_aggregate.loc[links_out].recall_between_groups) for links_out in links_out_range]
+        axs[axs_row].plot(
+            links_out_range,
+            mean_vals_between,
+            '-o',
+            color='tab:orange',
+            label='Between groups')
         # Set axes properties
         axs[axs_row].set_xlabel(
-            r'$\text{N}$', horizontalalignment='right', x=1.0)
+            r'$\text{Links between groups}$', horizontalalignment='right', x=1.0)
         axs[axs_row].set_ylabel(
-            r'$\text{Precision}$')
+            r'$\text{Recall}$')
         axs[axs_row].yaxis.set_ticks_position('both')
         axs[axs_row].set_ylim(bottom=0, top=1.1)
+        axs[axs_row].legend()
     return fig
 
 
@@ -6690,7 +6878,7 @@ cycler_default = cycler(
 # # Select value of interest (for those plots where only one value is used)
 # alpha_interest = 0.001
 # N_interest = 200
-# T_interest = 10000
+# T_interest = 1000
 # weight_interest = 'fixed'
 # algorithm_interest = 'mTE_greedy'
 # first_not_explored = 'precision'
@@ -6720,7 +6908,8 @@ cycler_default = cycler(
 # 
 # fig_list.append(scatter_performance_vs_in_degree_real())
 # fig_list.append(scatter_performance_vs_out_degree_real())
-# fig_list.append(scatter_FP_vs_in_degree_real())
+# fig_list.append(scatter_FP_per_target_vs_in_degree_real())
+# fig_list.append(scatter_FP_per_source_vs_in_degree_real())
 # #fig_list.append(plot_performance_vs_N_scatter())
 # #fig_list.append(scatter_performance_vs_omnibus_TE())
 # fig_list.append(scatter_in_degree_inferred_vs_real())
@@ -6748,8 +6937,7 @@ cycler_default = cycler(
 
 # Select value of interest (for those plots where only one value is used)
 alpha_interest = 0.001
-N_interest = 50
-T_interest = 10000
+T_interest = 1000
 algorithm_interest = 'mTE_greedy'
 first_not_explored = 'precision'
 # Ignore non-relevant explored parameters
@@ -6763,9 +6951,8 @@ ignore_par = {
     }
 parameters_explored = get_parameters_explored(first_not_explored, ignore_par)
 # Get parameter ranges
-nodes_n_range = np.unique(df['nodes_n']).astype(int)
+links_out_range = np.unique(df['links_out']).astype(int)
 samples_n_range = np.unique(df['samples_n']).astype(int)
-alpha_c_range = np.unique(df['p_value']).astype(float)
 algorithms = np.unique(df['algorithm'])
 # Define dictionary of algorithm abbreviations
 algorithm_names = {
@@ -6774,8 +6961,10 @@ algorithm_names = {
     'bTE_greedy': 'Bivariate Transfer Entropy',
     'mTE_greedy': 'Multivariate Transfer Entropy',
 }
-fig_list.append(violin_plot_SBM_precision())
-fig_list.append(violin_plot_SBM_recall())
+fig_list.append(violin_plot_SBM_precision_vs_links_out())
+fig_list.append(violin_plot_SBM_recall_vs_links_out())
+# fig_list.append(violin_plot_SBM_precision())
+# fig_list.append(violin_plot_SBM_recall())
 
 # -------------------------------------------------------------------------
 # endregion
