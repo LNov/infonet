@@ -241,14 +241,14 @@ def main():
         log_config='DEFAULT',
         log_stdout=True,  # log everything that is printed, will make the log file HUGE
         filename=traj_dir,  # filename or just folder (name will be automatic in this case)
-        multiproc=True,
+        multiproc=False,  # set to False if not using multiproc
         #use_pool=True,
         #ncores=10,
         #freeze_input=True,
-        use_scoop=True,
-        wrap_mode=pypetconstants.WRAP_MODE_LOCAL,
-        memory_cap=1,
-        swap_cap=1
+        use_scoop=False,  # set to False if not using multiproc
+        # wrap_mode=pypetconstants.WRAP_MODE_LOCAL,  # comment out if not using multiproc
+        # memory_cap=1,  # comment out if not using multiproc
+        # swap_cap=1  # comment out if not using multiproc
         #cpu_cap=30
 
         #,git_repository='' #path to the root git folder. The commit code will be added in the trajectory

@@ -69,8 +69,8 @@ def infer_network(network_inference, time_series, parallel_target_analysis=False
             'n_perm_max_seq',
             'fdr_correction',
             'p_value'
-            # 'alpha_max_stats',
-            # 'alpha_min_stats',
+            # 'alpha_max_stat',
+            # 'alpha_min_stat',
             # 'alpha_omnibus',
             # 'alpha_max_seq',
             # 'alpha_fdr'
@@ -90,8 +90,8 @@ def infer_network(network_inference, time_series, parallel_target_analysis=False
             'n_perm_max_seq',
             'fdr_correction',
             'p_value'
-            # 'alpha_max_stats',
-            # 'alpha_min_stats',
+            # 'alpha_max_stat',
+            # 'alpha_min_stat',
             # 'alpha_omnibus',
             # 'alpha_max_seq',
             # 'alpha_fdr'
@@ -110,8 +110,8 @@ def infer_network(network_inference, time_series, parallel_target_analysis=False
             'n_perm_max_seq',
             'fdr_correction',
             'p_value'
-            # 'alpha_max_stats',
-            # 'alpha_min_stats',
+            # 'alpha_max_stat',
+            # 'alpha_min_stat',
             # 'alpha_omnibus',
             # 'alpha_max_seq',
             # 'alpha_fdr'
@@ -131,8 +131,8 @@ def infer_network(network_inference, time_series, parallel_target_analysis=False
             'n_perm_max_seq',
             'fdr_correction',
             'p_value'
-            # 'alpha_max_stats',
-            # 'alpha_min_stats',
+            # 'alpha_max_stat',
+            # 'alpha_min_stat',
             # 'alpha_omnibus',
             # 'alpha_max_seq',
             # 'alpha_fdr'
@@ -211,13 +211,12 @@ def infer_network(network_inference, time_series, parallel_target_analysis=False
                 'alpha_max_seq': network_inference.p_value,
                 'alpha_fdr': network_inference.p_value
             }
-
             # # Add optional settings
             # optional_settings_keys = {
             #     'config.debug',
-            #     'config.max_mem_frac'
+            #     'config.max_mem_frac',
+            #     'kraskov_k',
             # }
-
             # for key in optional_settings_keys:
             #     if traj.f_contains(key, shortcuts=True):
             #         key_last = key.rpartition('.')[-1]
