@@ -9,6 +9,7 @@ from idtxl.estimators_jidt import JidtGaussianTE
 from idtxl.estimators_jidt import JidtDiscreteTE
 from idtxl.stats import network_fdr
 from scoop import futures
+import multiprocessing as mp
 import itertools
 
 
@@ -240,21 +241,30 @@ def infer_network(network_inference, time_series, parallel_target_analysis=False
                 network_analysis = MultivariateTE()
 
             if parallel_target_analysis:
-                # Use SCOOP to create a generator of map results, each
-                # correspinding to one map iteration
-                res_iterator = futures.map_as_completed(
-                    network_analysis.analyse_single_target,
-                    itertools.repeat(settings, nodes_n),
-                    itertools.repeat(dat, nodes_n),
-                    list(range(nodes_n))
-                )
-                # Run analysis
-                res_list = list(res_iterator)
+                # # Use SCOOP to create a generator of map results, each
+                # # correspinding to one map iteration
+                # res_iterator = futures.map_as_completed(
+                #     network_analysis.analyse_single_target,
+                #     itertools.repeat(settings, nodes_n),
+                #     itertools.repeat(dat, nodes_n),
+                #     list(range(nodes_n))
+                # )
+                # # Run analysis
+                # res_list = list(res_iterator)
+
+                # use multiprocessing.Pool() to parallelise over targets
+                pool = mp.Pool(mp.cpu_count())
+                res_list = [
+                    pool.apply(
+                        network_analysis.analyse_single_target,
+                        args=(settings, dat, target))
+                    for target in range(nodes_n)]
+                pool.close()
+                # combine results (and apply FDR if requested)
                 if settings['fdr_correction']:
                     res = network_fdr(
                         {'alpha_fdr': settings['alpha_fdr']},
-                        *res_list
-                    )
+                        *res_list)
                 else:
                     res = res_list[0]
                     res.combine_results(*res_list[1:])

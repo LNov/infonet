@@ -202,8 +202,8 @@ def bTE_on_existing_links(traj):
         bTE_empirical_matrix=bTE_empirical_matrix,
         comment='')
 
-    jSystem = jpype.JPackage("java.lang").System
-    jSystem.gc()
+    #jSystem = jpype.JPackage("java.lang").System
+    #jSystem.gc()
 
 
 def main():
