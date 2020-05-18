@@ -15,24 +15,24 @@ settings = {}
 # Parameters characterizing the initial topology of the network
 # -------------------------------------------------------------------
 # settings['topology.initial.model'] = 'ER_n_in'
-# settings['topology.initial.model'] = 'BA'
+settings['topology.initial.model'] = 'BA'
 # settings['topology.initial.model'] = 'WS'
 # settings['topology.initial.model'] = 'planted_partition'
-settings['topology.initial.model'] = 'planted_partition_fixed_links_n'
+# settings['topology.initial.model'] = 'planted_partition_fixed_links_n'
 # traj.parameters.f_get('topology.initial.model').v_comment = topology_models[
 #   'Description'].get(traj.parameters['topology.initial.model'])
 settings['topology.initial.nodes_n'] = 100  # np.arange(100, 100+1, 300).tolist()
 # settings['topology.initial.in_degree_expected'] = 3
 # settings['topology.initial.WS_k'] = 4
 # settings['topology.initial.WS_p'] = np.around(
-# np.logspace(-2.2, 0, 10), decimals=4).tolist()
-# settings['topology.initial.BA_m'] = 1
-settings['topology.initial.partitions_n'] = 5
+#     np.logspace(-2.2, 0, 10), decimals=4).tolist()
+settings['topology.initial.BA_m'] = 2
+# settings['topology.initial.partitions_n'] = 5
 # settings['topology.initial.p_in'] = 0.5
 # settings['topology.initial.p_out'] = 0.01
-settings['topology.initial.links_total'] = 10
-settings['topology.initial.links_out'] = np.arange(
-    0, settings['topology.initial.links_total'] + 1, 2).tolist()
+# settings['topology.initial.links_total'] = 10
+# settings['topology.initial.links_out'] = np.arange(
+#     0, settings['topology.initial.links_total'] + 1, 2).tolist()
 
 # -------------------------------------------------------------------
 # Parameters characterizing the evolution of the topology
@@ -44,7 +44,10 @@ settings['topology.evolution.model'] = 'static'
 # -------------------------------------------------------------------
 settings['node_coupling.initial.model'] = 'linear'
 settings['node_coupling.initial.weight_distribution'] = 'fixed'
-settings['node_coupling.initial.fixed_coupling'] = 0.05
+settings['node_coupling.initial.fixed_coupling'] = 0.1
+# settings['node_coupling.initial.weight_distribution'] = 'deterministic'
+# settings['node_coupling.initial.self_coupling'] = 0.5
+# settings['node_coupling.initial.total_cross_coupling'] = 0.
 
 # -------------------------------------------------------------------
 # Parameters characterizing the delay
@@ -91,7 +94,7 @@ settings['network_inference.cmi_estimator'] = 'JidtGaussianCMI'
 # settings['network_inference.cmi_estimator'] = 'JidtKraskovCMI'
 # settings['network_inference.cmi_estimator'] = 'OpenCLKraskovCMI'
 settings['network_inference.permute_in_time'] = False
-settings['network_inference.jidt_threads_n'] = 1
+settings['network_inference.jidt_threads_n'] = 'USE_ALL'
 settings['network_inference.n_perm_max_stat'] = 10000
 settings['network_inference.n_perm_min_stat'] = 10000
 settings['network_inference.n_perm_omnibus'] = 10000
@@ -111,6 +114,14 @@ settings['network_inference.p_value'] = 0.001
 # -------------------------------------------------------------------
 settings['repetition_i'] = (
     np.arange(0, 2, step=1).tolist())  # Normally starts from 0
+
+# -------------------------------------------------------------------
+# Config Parameters (i.e. those that DO NOT influence the final result)
+# -------------------------------------------------------------------
+settings['config'] = {
+    'parallel_target_analysis': True,
+    'debug': False,
+}
 
 # ------------------------------------------------------------------
 

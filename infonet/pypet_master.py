@@ -274,9 +274,14 @@ def main():
     traj = env.trajectory
 
     # Add config parameters (those that DO NOT influence the final result of the experiment)
-    traj.f_add_config('parallel_target_analysis', True)
-    #traj.f_add_config('debug', False)
-    #traj.f_add_config('max_mem_frac', 0.7)
+    if 'config' in settings:
+        for key, val in settings['config'].items():
+            traj.f_add_config(key, val)
+        del settings['config']
+    else:
+        # set default config parameters
+        traj.f_add_config('parallel_target_analysis', False)
+        traj.f_add_config('debug', False)
 
     # Set up trajectory parameters
     param_to_explore = {}
