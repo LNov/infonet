@@ -253,13 +253,19 @@ def infer_network(network_inference, time_series, parallel_target_analysis=False
                 # res_list = list(res_iterator)
 
                 # use multiprocessing.Pool() to parallelise over targets
-                pool = mp.Pool(mp.cpu_count())
-                res_list = [
-                    pool.apply(
+                processors_n = mp.cpu_count()
+                print('Starting parallel analysis over {0} processors'.format(
+                    processors_n))
+                pool = mp.Pool(processors_n)
+                result_objects = [
+                    pool.apply_async(
                         network_analysis.analyse_single_target,
                         args=(settings, dat, target))
                     for target in range(nodes_n)]
+                # result_objects is a list of pool.ApplyResult objects
+                res_list = [r.get() for r in result_objects]
                 pool.close()
+                pool.join()
                 # combine results (and apply FDR if requested)
                 if settings['fdr_correction']:
                     res = network_fdr(
