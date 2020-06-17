@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 import networkx as nx
+import os
+from scipy.io import loadmat
 
 
 # Define custom error classes
@@ -187,7 +189,7 @@ def generate_network(topology):
         'lattice': 'Regular lattice model',
         'star': 'Star model',
         'complete': 'Complete graph model',
-        'explicit': 'Explicit topology provided by the user'
+        'custom_topology': 'Custom topology provided by the user'
     })
     topology_models['Required parameters'] = pd.Series({
         'ER_n_p': ['nodes_n', 'ER_p'],
@@ -198,6 +200,7 @@ def generate_network(topology):
         'planted_partition': ['nodes_n', 'partitions_n', 'p_in', 'p_out'],
         'planted_partition_fixed_links_n': [
             'nodes_n', 'partitions_n', 'links_total', 'links_out'],
+        'custom_topology': ['adj_mat_path'],
     })
     try:
         # Ensure that a topology model has been specified
@@ -320,6 +323,22 @@ def generate_network(topology):
                 # apply circular shift to row to match group
                 A[row, :] = np.roll(row_perm, np.floor_divide(row, group_size) * group_size)
             return nx.DiGraph(A)
+        elif model == 'custom_topology':
+            # Read required parameters
+            adj_mat_path = topology.adj_mat_path
+            adj_mat_name = topology.adj_mat_name
+            # Import
+            ext = os.path.splitext(adj_mat_path)[-1].lower()
+            if ext == ".npy":
+                adj_mat = np.load(adj_mat_path)
+            elif ext == ".mat":
+                adj_mat = loadmat(adj_mat_path)[adj_mat_name]
+            else:
+                raise ParameterValue(
+                    ext,
+                    msg='Extension not implemented')
+            # Generate network
+            return nx.DiGraph(adj_mat)
         else:
             raise ParameterValue(
                 model,
