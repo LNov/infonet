@@ -24,6 +24,7 @@ import networkx as nx
 from io import StringIO, BytesIO
 from flask import Flask, send_file
 from scipy.io import savemat
+import powerlaw
 
 
 def get_parameters_explored(first_not_explored, ignore_par):
@@ -196,7 +197,7 @@ def plot_performance_vs_T():
     axs_i = 0
     for nodes_n in nodes_n_range:
         # Set subplot title
-        axs[axs_i].set_title(r'$network\ size\ =\ ${}'.format(nodes_n))
+        axs[axs_i].set_title(r'$\text{network size = }${}'.format(nodes_n))
         # Select dataframe entries(i.e runs) with the same number of nodes
         df_nodes = df_interest.loc[df_interest['nodes_n'] == nodes_n].drop(
             'nodes_n', 1)
@@ -231,8 +232,8 @@ def plot_performance_vs_T():
             fmt='-'
         )
         # Set axes properties
-        axs[axs_i].set_xlabel(r'$T$', horizontalalignment='right', x=1.0)
-        axs[axs_i].set_ylabel(r'$Performance$')  # , horizontalalignment='right', y=1.0)
+        axs[axs_i].set_xlabel(r'$\text{T}$', horizontalalignment='right', x=1.0)
+        axs[axs_i].set_ylabel(r'$\text{Performance}$')  # , horizontalalignment='right', y=1.0)
         axs[axs_i].set_xscale('log')
         axs[axs_i].yaxis.set_ticks_position('both')
         axs[axs_i].set_xlim([100, 10000])
@@ -293,7 +294,7 @@ def plot_performance_vs_N_scatter():
                 marker=markers_default[curve_i],
             )
         # Set axes properties
-        axs[axs_row].set_xlabel(r'$Network\ size$', horizontalalignment='right', x=1.0)
+        axs[axs_row].set_xlabel(r'$\text{Network size}$', horizontalalignment='right', x=1.0)
         axs[axs_row].set_ylabel(r'$T={}$'.format(samples_n))  #, horizontalalignment='right', y=1.0)
         # axs[axs_row].set_xscale('log')
         axs[axs_row].yaxis.set_ticks_position('both')
@@ -305,153 +306,6 @@ def plot_performance_vs_N_scatter():
             )
 
     return fig
-
-
-# region OLD # Plot performance tests vs. network size (max-min error bars)
-# # Subplots: number of samples
-# fig, axs = plt.subplots(len(samples_n_range), 1, sharey=True)
-# # fig.suptitle(r'$Performance\ tests\ (subplots:\ n.\ samples)$')
-# # Select data of interest
-# df_interest = df[parameters_explored + ['precision', 'recall', 'specificity']]
-# df_interest = df_interest.loc[df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-# # Convert remaining DataFrame to float type for averaging
-# df_interest = df_interest.astype(float)
-# # Choose which of the explored parameters will be aggregated or averaged
-# parameters_to_average = {'repetition_i'}
-# # If axs is not a list (i.e. it only contains one subplot), turn it into a
-# # list with one element
-# if not hasattr(axs, "__len__"):
-#     axs = np.array([axs])
-# axs_i = 0
-# for samples_n in samples_n_range:
-#     # Set subplot title
-#     #axs[axs_i].set_title(r'$T=${}'.format(samples_n))
-#     # Select dataframe entries(i.e runs) with the same number of samples
-#     df_samples = df_interest.loc[df_interest['samples_n'] == samples_n].drop(
-#         'samples_n', 1)
-#     # Group by number of nodes and then compute mean and extrema
-#     df_aggregate = df_samples.groupby('nodes_n').agg(
-#         ['mean', 'max', 'min'])
-#     # Ensure that only the desired parameters are aggregated or averaged
-#     df_keys_remaining = df_aggregate.columns.get_level_values(0)
-#     assert set.intersection(
-#         set(df_keys_remaining),
-#         set(parameters_explored)) == parameters_to_average
-#     # Plot precision
-#     axs[axs_i].errorbar(
-#         df_aggregate.index,
-#         df_aggregate['precision']['mean'],
-#         # Add vertical (asymmetric) error bars
-#         yerr=[
-#             (df_aggregate['precision']['mean']
-#              - df_aggregate['precision']['min']),
-#             (df_aggregate['precision']['max']
-#              - df_aggregate['precision']['mean'])
-#             ],
-#         fmt='-o'
-#     )
-#     # Plot recall
-#     axs[axs_i].errorbar(
-#         df_aggregate.index,
-#         df_aggregate['recall']['mean'],
-#         # Add vertical (symmetric) error bars
-#         yerr=[
-#             (df_aggregate['recall']['mean']
-#              - df_aggregate['recall']['min']),
-#             (df_aggregate['recall']['max']
-#              - df_aggregate['recall']['mean'])
-#             ],
-#         fmt='-o'
-#     )
-#     # Plot false positive rate
-#     axs[axs_i].errorbar(
-#         df_aggregate.index,
-#         df_aggregate['specificity']['mean'],
-#         # Add vertical (symmetric) error bars
-#         yerr=[
-#             (df_aggregate['specificity']['mean']
-#              - df_aggregate['specificity']['min']),
-#             (df_aggregate['specificity']['max']
-#              - df_aggregate['specificity']['mean'])
-#             ],
-#         fmt='-'
-#     )
-#     # Set axes properties
-#     axs[axs_i].set_xlabel(r'$Network\ size$', horizontalalignment='right', x=1.0)
-#     axs[axs_i].set_ylabel(r'$T={}$'.format(samples_n))#, horizontalalignment='right', y=1.0)
-#     #axs[axs_i].set_xscale('log')
-#     axs[axs_i].yaxis.set_ticks_position('both')
-#     axs[axs_i].set_ylim(bottom=0)
-#     # Add legend
-#     axs[axs_i].legend(labels=['Precision', 'Recall', 'Specificity'])
-# 
-#     axs_i += 1
-# fig_list.append(fig)
-# axs_list.append(axs)
-#endregion
-
-
-# region OLD # Plot performance tests vs. network size (box-whiskers error bars)
-# # Subplots: number of samples
-# fig, axs = plt.subplots(len(samples_n_range), 1, sharey=True)
-# # fig.suptitle(r'$Performance\ tests\ (subplots:\ n.\ samples)$')
-# # Select data of interest
-# df_interest = df[parameters_explored + ['precision', 'recall', 'specificity']]
-# df_interest = df_interest.loc[df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-# # Convert remaining DataFrame to float type for averaging
-# df_interest = df_interest.astype(float)
-# # Choose which of the explored parameters will be aggregated or averaged
-# parameters_to_average = {'repetition_i'}
-# # If axs is not a list (i.e. it only contains one subplot), turn it into a
-# # list with one element
-# if not hasattr(axs, "__len__"):
-#     axs = np.array([axs])
-# axs_i = 0
-# for samples_n in samples_n_range:
-#     # Set subplot title
-#     #axs[axs_i].set_title(r'$T={}$'.format(samples_n))
-#     # Select dataframe entries(i.e runs) with the same number of samples
-#     df_samples = df_interest.loc[df_interest['samples_n'] == samples_n].drop(
-#         'samples_n', 1)
-#     # Group by number of nodes and then compute mean and extrema
-#     df_aggregate = df_samples.groupby('nodes_n').agg(
-#         lambda x: list(x))
-#     # Ensure that only the desired parameters are aggregated or averaged
-#     df_keys_remaining = df_aggregate.columns.get_level_values(0)
-#     assert set.intersection(
-#         set(df_keys_remaining),
-#         set(parameters_explored)) == parameters_to_average
-#     # Plot precision
-#     axs[axs_i].boxplot(
-#         [df_aggregate['precision'][nodes_n]
-#          for nodes_n in nodes_n_range],
-#         positions=df_aggregate.index.astype(int).tolist()
-#     )
-#     # Plot recall
-#     axs[axs_i].boxplot(
-#         [df_aggregate['recall'][nodes_n]
-#          for nodes_n in nodes_n_range],
-#         positions=df_aggregate.index.astype(int).tolist()
-#     )
-#     # Plot false positive rate
-#     axs[axs_i].boxplot(
-#         [df_aggregate['specificity'][nodes_n]
-#          for nodes_n in nodes_n_range],
-#         positions=df_aggregate.index.astype(int).tolist()
-#     )
-#     # Set axes properties
-#     axs[axs_i].set_xlabel(r'$Network\ size$', horizontalalignment='right', x=1.0)
-#     axs[axs_i].set_ylabel('$T={}$'.format(samples_n))#, horizontalalignment='right', y=1.0)
-#     #axs[axs_i].set_xscale('log')
-#     axs[axs_i].yaxis.set_ticks_position('both')
-#     axs[axs_i].set_ylim(bottom=0)
-#     # Add legend
-#     axs[axs_i].legend(labels=['Precision', 'Recall', 'Specificity'])
-# 
-#     axs_i += 1
-# fig_list.append(fig)
-# axs_list.append(axs)
-#endregion
 
 
 def plot_precision_vs_N_scatter():
@@ -495,8 +349,8 @@ def plot_precision_vs_N_scatter():
             marker=markers_default[curve_i],
             )
     # Set axes properties
-    axs[0].set_xlabel(r'$Network\ size$', horizontalalignment='right', x=1.0)
-    axs[0].set_ylabel(r'$Precision$')  # , horizontalalignment='right', y=1.0)
+    axs[0].set_xlabel(r'$\text{Network size}$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(r'$\text{Precision}$')  # , horizontalalignment='right', y=1.0)
     axs[0].yaxis.set_ticks_position('both')
     axs[0].set_ylim(bottom=0)
     # Add legend
@@ -568,8 +422,8 @@ def plot_precision_vs_N_scatter_inset():
             color=colors_default[curve_i],
             marker=markers_default[curve_i])
     # Set axes properties
-    axs[0].set_xlabel(r'$Network\ size$', horizontalalignment='right', x=1.0)
-    axs[0].set_ylabel(r'$Precision$')  # , horizontalalignment='right', y=1.0)
+    axs[0].set_xlabel(r'$\text{Network size}$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(r'$\text{Precision}$')  # , horizontalalignment='right', y=1.0)
     axs[0].yaxis.set_ticks_position('both')
     plt.setp(axs_inset, xticks=nodes_n_range, yticks=[0.9, 0.95, 1.0])
     axs_inset.tick_params(axis='both', which='major', labelsize=10)
@@ -624,8 +478,8 @@ def plot_recall_vs_N_scatter():
             color=colors_default[curve_i],
             marker=markers_default[curve_i])
     # Set axes properties
-    axs[0].set_xlabel(r'$Network\ size$', horizontalalignment='right', x=1.0)
-    axs[0].set_ylabel(r'$Recall$')  # , horizontalalignment='right', y=1.0)
+    axs[0].set_xlabel(r'$\text{Network size}$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(r'$\text{Recall}$')  # , horizontalalignment='right', y=1.0)
     # axs[0].set_xscale('log')
     axs[0].yaxis.set_ticks_position('both')
     axs[0].set_ylim(bottom=0)
@@ -678,7 +532,7 @@ def plot_spectral_radius_vs_N_scatter():
         c='k'
     )
     # Set axes properties
-    axs[0].set_xlabel(r'$Network\ size$', horizontalalignment='right', x=1.0)
+    axs[0].set_xlabel(r'$\text{Network size}$', horizontalalignment='right', x=1.0)
     axs[0].set_ylabel(r'$\rho$')  # , horizontalalignment='right', y=1.0)
     # axs[0].set_xscale('log')
     axs[0].yaxis.set_ticks_position('both')
@@ -743,7 +597,7 @@ def plot_FPR_target_vs_alpha():
         )
         # Set axes properties
         axs[axs_row].set_xlabel(r'$\alpha_{max}$', horizontalalignment='right', x=1.0)
-        axs[axs_row].set_ylabel(r'$False\ positive\ rate$')  # , horizontalalignment='right', y=1.0)
+        axs[axs_row].set_ylabel(r'$\text{False positive rate}$')  # , horizontalalignment='right', y=1.0)
         axs[axs_row].set_xscale('log')
         axs[axs_row].set_yscale('log')
         axs[axs_row].yaxis.set_ticks_position('both')
@@ -832,7 +686,7 @@ def plot_FPR_target_vs_alpha_quantile_std():
         )
         # Set axes properties
         axs[axs_row].set_xlabel(r'$\alpha_{max}$', horizontalalignment='right', x=1.0)
-        axs[axs_row].set_ylabel(r'$False\ positive\ rate$')  # , horizontalalignment='right', y=1.0)
+        axs[axs_row].set_ylabel(r'$\text{False positive rate}$')  # , horizontalalignment='right', y=1.0)
         axs[axs_row].set_xscale('log')
         axs[axs_row].set_yscale('log')
         axs[axs_row].yaxis.set_ticks_position('both')
@@ -846,10 +700,9 @@ def plot_FPR_target_vs_alpha_quantile_std():
 
 def plot_FPR_target_vs_alpha_quantile_mean():
     # Plot incorrect targets rate vs. critical alpha
+    # Subplots: T
     # Legend: number of nodes
-    # Subplots: number of samples
-
-    fig, axs = plt.subplots(1, 1, sharey=True)  # len(samples_n_range)
+    fig, axs = plt.subplots(len(samples_n_range), 1, sharey=True)
     # Select data of interest
     df_interest = df[parameters_explored + ['incorrect_target_rate']]
     # Convert remaining DataFrame to float type for averaging
@@ -860,9 +713,9 @@ def plot_FPR_target_vs_alpha_quantile_mean():
     # list with one element
     if not hasattr(axs, "__len__"):
         axs = np.array([axs])
-    for (axs_row, samples_n) in enumerate(samples_n_range[-1:]):
+    for (axs_row, samples_n) in enumerate(samples_n_range):
         # Set subplot title
-        # axs[axs_row].set_title('$T={}$'.format(samples_n.astype(int)))
+        axs[axs_row].set_title('$T={}$'.format(samples_n.astype(int)))
         # Select dataframe entries(i.e runs) with the same number of samples
         df_samples = df_interest.loc[
             df_interest['samples_n'] == samples_n].drop('samples_n', 1)
@@ -929,7 +782,7 @@ def plot_FPR_target_vs_alpha_quantile_mean():
             label='Identity')
         # Set axes properties
         axs[axs_row].set_xlabel(r'$\alpha_{max}$', horizontalalignment='right', x=1.0)
-        axs[axs_row].set_ylabel(r'$False\ positive\ rate$')  # , horizontalalignment='right', y=1.0)
+        axs[axs_row].set_ylabel(r'$\text{False positive rate}$')  # , horizontalalignment='right', y=1.0)
         axs[axs_row].set_xscale('log')
         axs[axs_row].set_yscale('log')
         #axs[axs_row].set_yscale('symlog', linthreshx=0.00001)
@@ -1008,7 +861,7 @@ def plot_FPR_target_vs_alpha_quantile_N_interest():
         )
         # Set axes properties
         axs[axs_row].set_xlabel(r'$\alpha_{max}$', horizontalalignment='right', x=1.0)
-        axs[axs_row].set_ylabel(r'$False\ positive\ rate$')  # , horizontalalignment='right', y=1.0)
+        axs[axs_row].set_ylabel(r'$\text{False positive rate}$')  # , horizontalalignment='right', y=1.0)
         axs[axs_row].set_xscale('log')
         axs[axs_row].set_yscale('log')
         axs[axs_row].yaxis.set_ticks_position('both')
@@ -1087,7 +940,7 @@ def plot_precision_recall_vs_alpha():
             horizontalalignment='right',
             x=1.0)
         axs[axs_row][0].set_xscale('log')
-        axs[axs_row][0].set_ylabel(r'$Precision$')  # , horizontalalignment='right', y=1.0)
+        axs[axs_row][0].set_ylabel(r'$\text{Precision}$')  # , horizontalalignment='right', y=1.0)
         axs[axs_row][0].yaxis.set_ticks_position('both')
         axs[axs_row][0].set_ylim(bottom=0)
 
@@ -1096,7 +949,7 @@ def plot_precision_recall_vs_alpha():
             horizontalalignment='right',
             x=1.0)
         axs[axs_row][1].set_xscale('log')
-        axs[axs_row][1].set_ylabel(r'$Recall$')  # , horizontalalignment='right', y=1.0)
+        axs[axs_row][1].set_ylabel(r'$\text{Recall}$')  # , horizontalalignment='right', y=1.0)
         axs[axs_row][1].set_ylim(bottom=0)
         # Add legend
         legend = [r'$N={}$'.format(nodes_n) for nodes_n in nodes_n_range]
@@ -1104,233 +957,6 @@ def plot_precision_recall_vs_alpha():
         axs[axs_row][1].legend(labels=legend)
 
     return fig
-
-
-# region OLD Precision/Recall scatter plot (aggregate, only show mean)
-# # Error bars: max and min values
-# # Probably better than Sensitivity/Specificity in our case, because the number
-# # of negatives outweight the number of positives, see reference:
-# # https://www.ncbi.nlm.nih.gov/pmc/articles/PMC4349800/
-# arrow_color = 'b'
-# fig = plt.figure()
-# axs = plt.gca()
-# axs = np.array([axs])
-# # Select data of interest
-# df_interest = df[parameters_explored + ['precision', 'recall']]
-# # Convert remaining DataFrame to float type for averaging 
-# df_interest = df_interest.astype(float)
-# # Choose which of the explored parameters will be aggregated or averaged
-# parameters_to_average = {'nodes_n', 'repetition_i'}
-# # Arrow coordinates
-# arrow_coord = np.zeros(shape=(len(alpha_c_range), len(samples_n_range), 2))
-# arrow_i = 0
-# for alpha_c in alpha_c_range:
-#     # Select dataframe entries(i.e runs) with the same alpha_c
-#     df_alpha_c = df_interest.loc[df_interest['p_value'] == alpha_c].drop(
-#         'p_value', 1)
-#     # Group by number of samples and then compute mean and std
-#     df_aggregate = df_alpha_c.groupby('samples_n').agg(
-#         ['mean', 'min', 'max'])
-#     # Ensure that only the desired parameters are aggregated or averaged
-#     df_keys_remaining = df_aggregate.columns.get_level_values(0)
-#     assert set.intersection(
-#         set(df_keys_remaining),
-#         set(parameters_explored)) == parameters_to_average
-#     # Plot precision vs. recall
-#     axs[0].errorbar(
-#         df_aggregate['recall']['mean'],
-#         df_aggregate['precision']['mean'],
-#         # Add horizontal (asymmetric) error bars
-#         xerr=[
-#             (df_aggregate['recall']['mean']
-#              - df_aggregate['recall']['min']),
-#             (df_aggregate['recall']['max']
-#              - df_aggregate['recall']['mean'])
-#             ],
-#         # Add vertical (asymmetric) error bars
-#         yerr=[
-#             (df_aggregate['precision']['mean']
-#              - df_aggregate['precision']['min']),
-#             (df_aggregate['precision']['max']
-#              - df_aggregate['precision']['mean'])
-#             ],
-#         fmt=''
-#     )
-#     # arrow_coord[arrow_i, :, 0] = df_aggregate['recall']['mean']
-#     arrow_coord[arrow_i, 0:len(df_aggregate), 0] = (
-#         df_aggregate['recall']['mean'])
-#     # arrow_coord[arrow_i, :, 1] = df_aggregate['recall']['mean']
-#     arrow_coord[arrow_i, 0:len(df_aggregate), 1] = (
-#         df_aggregate['precision']['mean'])
-#     arrow_i += 1
-# for i in range(len(samples_n_range) - 1):
-#     arrow_width = 0.01
-#     arrow_head_length = 0.02
-#     plt.arrow(
-#         arrow_coord[0, i, 0],
-#         arrow_coord[0, i, 1],
-#         arrow_coord[-1, i, 0] - arrow_coord[0, i, 0],
-#         arrow_coord[-1, i, 1] - arrow_coord[0, i, 1],
-#         alpha=0.3,
-#         width=arrow_width,
-#         head_length=arrow_head_length,
-#         length_includes_head=True,
-#         color=arrow_color
-#         )
-# # Add legend
-# legend = [
-#     r'$\alpha_{{max}}={}$'.format(alpha_c) for alpha_c in alpha_c_range]
-# axs[0].legend(labels=legend, loc=(0.5, 0.3))
-# # Set axes properties
-# axs[0].set_xlabel(r'$Recall$', horizontalalignment='right', x=1.0)
-# axs[0].set_ylabel(r'$Precision$')#, horizontalalignment='right', y=1.0)
-# #axs[0].set_xscale('log')
-# #axs[0].set_yscale('log')
-# axs[0].xaxis.set_ticks_position('both')
-# axs[0].yaxis.set_ticks_position('both')
-# axs[0].set_xlim([-0.01, 1.01])
-# #axs[0].set_ylim([0.4, 1])
-# #axs[0].set_xticks([0.3, 0.5, 0.95])
-# #axs[0].set_xticks(np.arange(0, 1.1, 0.1), minor=True)
-# #axs[0].set_yticks([0, 0.5, 1])
-# #axs[0].set_yticks(np.arange(0,1.1,0.1), minor=True)
-# #plt.xticks([0.15,0.3,0.5,0.95,0.975], ('100 samples', '0.3', '1000 samples', '0.95', '10000 samples'), rotation=30)
-# axs[0].axvline(0.3, linestyle='--', color='k')
-# axs[0].axvline(0.95, linestyle='--', color='k')
-# # Add text
-# #plt.text(0.1, 0.33, r'$T=100$', fontsize=10)
-# #plt.text(0.57, 0.33, r'$T=1000$', fontsize=10)
-# #plt.text(0.965, 0.4, r'$T=1000$', fontsize=10, rotation=90)
-# plt.text(0.12, plt.ylim()[0] + 0.08, r'$T=100$', fontsize=10)
-# plt.text(0.57, plt.ylim()[0] + 0.08, r'$T=1000$', fontsize=10)
-# plt.text(0.97, plt.ylim()[0] + 0.21, r'$T=10000$', fontsize=10, rotation=90)
-# fig_list.append(fig)
-# axs_list.append(axs)
-#endregion
-
-# region OLD # Receiver operating characteristic (linear scale)
-# fig, axs = plt.subplots(len(nodes_n_range), 1, sharex=True, sharey=True)
-# # fig.suptitle(r'$Receiver\ operating\ characteristic\ (linear\ scale)$')
-# # Select data of interest
-# df_interest = df
-# # Drop non relevant columns
-# df_interest = df_interest.drop('TE_omnibus_empirical', 1)
-# df_interest = df_interest.drop('TE_omnibus_theoretical_inferred_vars', 1)
-# df_interest = df_interest.drop('TE_omnibus_theoretical_causal_vars', 1)
-# # Convert remaining DataFrame to float type for averaging
-# df_interest = df_interest.astype(float)
-# # Choose which of the explored parameters will be aggregated or averaged
-# parameters_to_average = {'repetition_i'}
-# # If axs is not a list (i.e. it only contains one subplot), turn it into a
-# # list with one element
-# if not hasattr(axs, "__len__"):
-#     axs = np.array([axs])
-# axs_i = 0
-# for nodes_n in nodes_n_range:
-#     # Set subplot title
-#     axs[axs_i].set_title(r'$N={}$'.format(nodes_n))
-#     # Select dataframe entries(i.e runs) with the same number of nodes
-#     df_nodes = df_interest.loc[df_interest['nodes_n'] == nodes_n].drop('nodes_n', 1)
-#     for samples_n in samples_n_range:
-#         # Select dataframe entries(i.e runs) with the same number of samples
-#         df_samples = df_nodes.loc[df_nodes['samples_n'] == samples_n].drop(
-#             'samples_n', 1)
-#         # Group by p-value and then compute mean and std
-#         df_aggregate = df_samples.groupby('p_value').agg(
-#             ['mean', 'std'])
-#         # Ensure that only the desired parameters are aggregated or averaged
-#         df_keys_remaining = df_aggregate.columns.get_level_values(0)
-#         assert set.intersection(
-#             set(df_keys_remaining),
-#             set(parameters_explored)) == parameters_to_average
-#         # Plot true positive ratio vs False positive ratio
-#         #axs[axs_i].scatter(
-#         #    df_aggregate['false_pos_rate']['mean'],  #False positive rate=1-specificity
-#         #    df_aggregate['recall']['mean']  #Recall=Sensitivity=True positive rate
-#         #)
-#         axs[axs_i].errorbar(
-#             df_aggregate['false_pos_rate']['mean'],
-#             df_aggregate['recall']['mean'],
-#             # Add horizontal (symmetric) error bars
-#             xerr=df_aggregate['false_pos_rate']['std'],
-#             # Add vertical (symmetric) error bars
-#             yerr=df_aggregate['recall']['std'],
-#             fmt='-'
-#         )
-#     # Set axes properties
-#     axs[axs_i].set_xlabel(r'$False\ positive\ rate$', horizontalalignment='right', x=1.0)
-#     axs[axs_i].set_ylabel(r'$True\ positive\ rate$')#, horizontalalignment='right', y=1.0)
-#     axs[axs_i].yaxis.set_ticks_position('both')
-#     axs[axs_i].set_xlim([0, 1])
-#     axs[axs_i].set_ylim([0, 1])
-#     # Add legend
-# #    axs[axs_i].legend(labels=samples_n_range.astype(int))
-# 
-#     axs_i += 1
-# fig_list.append(fig)
-# axs_list.append(axs)
-#endregion
-
-# region OLD Receiver operating characteristic (log scale)
-#fig, axs = plt.subplots(len(nodes_n_range), 1, sharex=True, sharey=True)
-##fig.suptitle(r'$Receiver\ operating\ characteristic\ (log\ scale)$')
-## Select data of interest
-#df_interest = df
-## Drop non relevant columns
-#df_interest = df_interest.drop('TE_omnibus_empirical', 1)
-#df_interest = df_interest.drop('TE_omnibus_theoretical_inferred_vars', 1)
-#df_interest = df_interest.drop('TE_omnibus_theoretical_causal_vars', 1)
-## Convert remaining DataFrame to float type for averaging 
-#df_interest = df_interest.astype(float)
-## Choose which of the explored parameters will be aggregated or averaged
-#parameters_to_average = {'repetition_i'}
-## If axs is not a list (i.e. it only contains one subplot), turn it into a list with one element
-#if not hasattr(axs, "__len__"):
-#    axs = np.array([axs])
-#axs_i = 0
-#for nodes_n in nodes_n_range:
-#    # Set subplot title
-#    axs[axs_i].set_title(r'$N={}$'.format(nodes_n))
-#    # Plot true positive ratio vs False positive ratio
-#    # Select dataframe entries(i.e runs) with the same number of nodes
-#    df_nodes = df_interest.loc[df_interest['nodes_n'] == nodes_n].drop('nodes_n', 1)
-#    for samples_n in samples_n_range:
-#        # Select dataframe entries(i.e runs) with the same number of samples
-#        df_samples = df_nodes.loc[df_nodes['samples_n'] == samples_n].drop('samples_n', 1)
-#        # Group by p_value and then compute mean and std
-#        df_aggregate = df_samples.groupby('p_value').agg(['mean', 'std'])
-#        # Remove zero values on the x axis because of the log scale
-#        df_aggregate = df_aggregate.loc[df_aggregate['false_pos_rate']['mean'] > 0]
-#        # Ensure that only the desired parameters are aggregated or averaged
-#        df_keys_remaining = df_aggregate.columns.get_level_values(0)
-#        assert set.intersection(set(df_keys_remaining), set(parameters_explored)) == parameters_to_average
-#        # Plot true positive ratio vs False positive ratio
-#        #axs[axs_i].scatter(
-#        #    df_aggregate['false_pos_rate']['mean'],  #False pos rate=1-specificity
-#        #    df_aggregate['recall']['mean']  #Recall=Sensitivity
-#        #)
-#        axs[axs_i].errorbar(
-#            df_aggregate['false_pos_rate']['mean'],
-#            df_aggregate['recall']['mean'],
-#            # Add horizontal (symmetric) error bars
-#            xerr=df_aggregate['false_pos_rate']['std'],
-#            # Add vertical (symmetric) error bars
-#            yerr=df_aggregate['recall']['std'],
-#        )
-#    # Set axes properties
-#    axs[axs_i].set_xlabel(r'$False\ positive\ rate$', horizontalalignment='right', x=1.0)
-#    axs[axs_i].set_ylabel(r'$True\ positive\ rate$')#, horizontalalignment='right', y=1.0)
-#    axs[axs_i].set_xscale('log')
-#    axs[axs_i].yaxis.set_ticks_position('both')
-#    axs[axs_i].set_xlim([0, 1])
-#    axs[axs_i].set_ylim([0, 1])
-#    # Add legend
-#    axs[axs_i].legend(labels=samples_n_range.astype(int))
-#
-#    axs_i += 1
-#fig_list.append(fig)
-#axs_list.append(axs)
-#endregion
 
 
 def plot_precision_vs_recall_subplots_N_scatter():
@@ -1385,8 +1011,8 @@ def plot_precision_vs_recall_subplots_N_scatter():
                 marker=markers_default[curve_i]
             )
         # Set axes properties
-        axs[axs_row].set_xlabel(r'$Recall$', horizontalalignment='right', x=1.0)
-        axs[axs_row].set_ylabel(r'$Precision$')#, horizontalalignment='right', y=1.0)
+        axs[axs_row].set_xlabel(r'$\text{Recall}$', horizontalalignment='right', x=1.0)
+        axs[axs_row].set_ylabel(r'$\text{Precision}$')#, horizontalalignment='right', y=1.0)
         #axs[axs_row].set_xscale('log')
         axs[axs_row].yaxis.set_ticks_position('both')
         axs[axs_row].set_xlim([0, 1])
@@ -1449,8 +1075,8 @@ def plot_precision_vs_recall_subplots_T_scatter():
             #     yerr=df_aggregate['precision']['std'],
             # )
         # Set axes properties
-        axs[axs_row].set_xlabel(r'$Recall$', horizontalalignment='right', x=1.0)
-        axs[axs_row].set_ylabel(r'$Precision$')  # , horizontalalignment='right', y=1.0)
+        axs[axs_row].set_xlabel(r'$\text{Recall}$', horizontalalignment='right', x=1.0)
+        axs[axs_row].set_ylabel(r'$\text{Precision}$')  # , horizontalalignment='right', y=1.0)
         # axs[axs_row].set_xscale('log')
         # axs[axs_row].set_yscale('log')
         axs[axs_row].yaxis.set_ticks_position('both')
@@ -1529,8 +1155,8 @@ def plot_precision_vs_recall_subplots_T_scatter_aggregate():
         r'$\alpha_{{max}}={}$'.format(alpha_c) for alpha_c in alpha_c_range]
     axs[0].legend(labels=legend, loc=(0.5, 0.3))
     # Set axes properties
-    axs[0].set_xlabel(r'$Recall$', horizontalalignment='right', x=1.0)
-    axs[0].set_ylabel(r'$Precision$')  # , horizontalalignment='right', y=1.0)
+    axs[0].set_xlabel(r'$\text{Recall}$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(r'$\text{Precision}$')  # , horizontalalignment='right', y=1.0)
     # axs[0].set_xscale('log')
     # axs[0].set_yscale('log')
     axs[0].yaxis.set_ticks_position('both')
@@ -1599,7 +1225,7 @@ def plot_delay_error_mean_vs_T():
                 marker=markers_default[curve_i])
             # Set axes properties
             axs[axs_row].set_xlabel(r'$T$', horizontalalignment='right', x=1.0)
-            axs[axs_row].set_ylabel(r'$Absolute\ error$')  # , horizontalalignment='right', y=1.0)
+            axs[axs_row].set_ylabel(r'$\text{Absolute error}$')  # , horizontalalignment='right', y=1.0)
             axs[axs_row].set_xscale('log')
             # axs[axs_row].set_yscale('log')
             axs[axs_row].yaxis.set_ticks_position('both')
@@ -1655,7 +1281,7 @@ def plot_delay_error_mean_vs_T_relative():
                 marker=markers_default[curve_i])
             # Set axes properties
             axs[axs_row].set_xlabel(r'$T$', horizontalalignment='right', x=1.0)
-            #axs[axs_row].set_ylabel(r'$Relative\ error$')  # , horizontalalignment='right', y=1.0)
+            #axs[axs_row].set_ylabel(r'$\text{Relative error}$')  # , horizontalalignment='right', y=1.0)
             axs[axs_row].set_xscale('log')
             # axs[axs_row].set_yscale('log')
             axs[axs_row].yaxis.set_ticks_position('both')
@@ -1713,7 +1339,7 @@ def plot_delay_error_mean_vs_T_alpha_interest():
                 marker=markers_default[curve_i])
             # Set axes properties
             axs[axs_row].set_xlabel(r'$T$', horizontalalignment='right', x=1.0)
-            axs[axs_row].set_ylabel(r'$Absolute\ error$')  # , horizontalalignment='right', y=1.0)
+            axs[axs_row].set_ylabel(r'$\text{Absolute error}$')  # , horizontalalignment='right', y=1.0)
             axs[axs_row].set_xscale('log')
             # axs[axs_row].set_yscale('log')
             axs[axs_row].yaxis.set_ticks_position('both')
@@ -1770,7 +1396,7 @@ def plot_delay_error_mean_vs_T_relative_alpha_interest():
                 marker=markers_default[curve_i])
             # Set axes properties
             axs[axs_row].set_xlabel(r'$T$', horizontalalignment='right', x=1.0)
-            axs[axs_row].set_ylabel(r'$Lag\ error$')  # , horizontalalignment='right', y=1.0)
+            axs[axs_row].set_ylabel(r'$\text{Lag error}$')  # , horizontalalignment='right', y=1.0)
             axs[axs_row].set_xscale('log')
             # axs[axs_row].set_yscale('log')
             axs[axs_row].yaxis.set_ticks_position('both')
@@ -1833,7 +1459,7 @@ def plot_omnibus_TE_empirical_histogram_alpha_interest():
 
             # Set axes properties
             axs[axs_row, axs_col].set_xlabel(
-                r'$Omnibus\ TE\ empirical$', horizontalalignment='right', x=1.0)
+                r'$\text{Omnibus TE empirical}$', horizontalalignment='right', x=1.0)
             # axs[axs_row, axs_col].set_xscale('log')
             # axs[axs_row, axs_col].set_ylabel(' ')#, horizontalalignment='right', y=1.0)
             axs[axs_row, axs_col].yaxis.set_ticks_position('both')
@@ -1865,7 +1491,7 @@ def plot_omnibus_TE_empirical_histogram_alpha_interest_T_interest():
         # Plot omnibus TE histogram
         axs[0].hist(TE_omnibus_empirical)
     # Set axes properties
-    axs[0].set_xlabel(r'$Omnibus\ TE\ empirical$', horizontalalignment='right', x=1.0)
+    axs[0].set_xlabel(r'$\text{Omnibus TE empirical}$', horizontalalignment='right', x=1.0)
     axs[0].yaxis.set_ticks_position('both')
     axs[0].set_ylim(bottom=0)
 
@@ -1882,7 +1508,7 @@ def plot_omnibus_TE_empirical_vs_theoretical_causal_vars_alpha_interest():
         len(nodes_n_range),
         sharex=True,
         sharey=True)
-    fig.suptitle(r'$Omnibus\ TE\ theoretical\ (causal\ vars)\ vs.\ Omnibus\ TE\ empirical$')    
+    fig.suptitle(r'$\text{Omnibus TE theoretical (causal vars) vs. Omnibus TE empirical}$')    
     # Select data of interest
     df_interest = df[parameters_explored + [
         'TE_omnibus_empirical', 'TE_omnibus_theoretical_causal_vars']]
@@ -1927,9 +1553,9 @@ def plot_omnibus_TE_empirical_vs_theoretical_causal_vars_alpha_interest():
                     'g--')
             # Set axes properties
             axs[axs_row, axs_col].set_xlabel(
-                r'$TE\ empirical$', horizontalalignment='right', x=1.0)
+                r'$\text{TE empirical}$', horizontalalignment='right', x=1.0)
             axs[axs_row, axs_col].set_ylabel(
-                r'$TE\ theoretical$')
+                r'$\text{TE theoretical}$')
             # axs[axs_row, axs_col].set_xscale('log')
             axs[axs_row, axs_col].yaxis.set_ticks_position('both')
             axs[axs_row, axs_col].set_xlim(left=0)
@@ -1947,7 +1573,7 @@ def plot_omnibus_TE_empirical_vs_theoretical_inferred_vars_alpha_interest():
         len(nodes_n_range),
         sharex=True,
         sharey=True)
-    fig.suptitle(r'$Omnibus\ TE\ theoretical\ (inferred\ vars)\ vs.\ Omnibus\ TE\ empirical$')
+    fig.suptitle(r'$\text{Omnibus TE theoretical (inferred vars) vs. Omnibus TE empirical}$')
     # Select data of interest
     df_interest = df[parameters_explored + [
         'TE_omnibus_empirical', 'TE_omnibus_theoretical_inferred_vars']]
@@ -1993,9 +1619,9 @@ def plot_omnibus_TE_empirical_vs_theoretical_inferred_vars_alpha_interest():
                     'g--')
             # Set axes properties
             axs[axs_row, axs_col].set_xlabel(
-                r'$TE\ empirical$', horizontalalignment='right', x=1.0)
+                r'$\text{TE empirical}$', horizontalalignment='right', x=1.0)
             axs[axs_row, axs_col].set_ylabel(
-                r'$TE\ theoretical$')
+                r'$\text{TE theoretical}$')
             # axs[axs_row, axs_col].set_xscale('log')
             axs[axs_row, axs_col].yaxis.set_ticks_position('both')
             axs[axs_row, axs_col].set_xlim(left=0)
@@ -2047,12 +1673,85 @@ def plot_relative_error_TE_empirical_vs_theoretical_causal_vars_alpha_interest()
         alpha=0.3)
     # Set axes properties
     axs[0].set_xlabel(r'$T$', horizontalalignment='right', x=1.0)
-    axs[0].set_ylabel(r'$Relative\ TE\ error$')
+    axs[0].set_ylabel(r'$\text{Relative TE error}$')
     axs[0].set_xscale('log')
     axs[0].set_yscale('log')
     axs[0].yaxis.set_ticks_position('both')
 
     return fig
+
+
+def plot_path_lenght_vs_alpha_subplot_algorithm():
+    # Plot average path lenght vs. alpha (scatter error)
+    # Subplots: algorithm
+    subplots_v = len(algorithms)
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Avoid indexing issues if only one row or one column
+    if subplots_v == 1:
+        print('One vertical subplot only')
+        axs = np.array([axs])
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'average_shortest_path_length_real',
+        'average_shortest_path_length_inferred']]
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Convert remaining DataFrame to float type for averaging
+    # df_interest = df_interest.astype(float)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    for (axs_row, algorithm) in enumerate(algorithms):
+        # Set subplot title
+        axs[axs_row].set_title('{0}'.format(algorithm_names[algorithm]))
+        # Select dataframe entries(i.e runs) with the same number of samples
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by p_value
+        df_aggregate = df_algorithm.groupby('p_value').agg(
+            lambda x: list(x))
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Plot average path lenght real
+        axs[axs_row].plot(
+            alpha_c_range,
+            [np.nanmean(df_aggregate['average_shortest_path_length_real'][p_value])
+                for p_value in alpha_c_range],
+        )
+        axs[axs_row].scatter(
+            df_algorithm['p_value'].values.astype(float).tolist(),
+            df_algorithm['average_shortest_path_length_real'].values,
+            alpha=0.3
+        )
+        # Plot average path lenght inferred
+        axs[axs_row].plot(
+            alpha_c_range,
+            [np.nanmean(df_aggregate['average_shortest_path_length_inferred'][p_value])
+             for p_value in alpha_c_range],
+        )
+        axs[axs_row].scatter(
+            df_algorithm['p_value'].values.astype(float).tolist(),
+            df_algorithm['average_shortest_path_length_inferred'].values,
+            alpha=0.3
+        )
+        # Set axes properties
+        axs[axs_row].set_xlabel(r'$\alpha_c$', horizontalalignment='right', x=1.0)
+        axs[axs_row].set_ylabel(r'$\text{Characteristic path length}$')
+        axs[axs_row].set_xscale('log')
+        axs[axs_row].yaxis.set_ticks_position('both')
+        axs[axs_row].set_ylim(bottom=0)
+        # Add legend
+        axs[axs_row].legend(
+            labels=[
+                'Real',
+                'Inferred'
+            ]#,
+            #loc=(0.05, 0.16)
+            )
+
+    return fig
+
 
 
 # -------------------------------------------------------------------------
@@ -2359,12 +2058,6 @@ def violin_plot_omnibus_TE_empirical_vs_WS_p():
     fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
     # Select data of interest
     df_interest = df[parameters_explored + ['TE_omnibus_empirical']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -2412,9 +2105,9 @@ def violin_plot_omnibus_TE_empirical_vs_WS_p():
             color='tab:blue')
         # Set axes properties
         axs[axs_row].set_xlabel(
-            r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
+            r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
         axs[axs_row].set_ylabel(
-            r'$Omnibus\ TE$')
+            r'$\text{Omnibus TE}$')
         axs[axs_row].set_xscale('log')
         axs[axs_row].yaxis.set_ticks_position('both')
         axs[axs_row].set_ylim(bottom=0)
@@ -2433,10 +2126,6 @@ def violin_TE_complete_theoretical_causal_vars_vs_WS_p():
     df_interest = df[parameters_explored + ['TE_complete_theoretical_causal_vars']]
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Get a numpy array from a list of arrays
@@ -2486,9 +2175,9 @@ def violin_TE_complete_theoretical_causal_vars_vs_WS_p():
             color='tab:blue')
         # Set axes properties
         axs[axs_row].set_xlabel(
-            r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
+            r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
         axs[axs_row].set_ylabel(
-            r'$Complete\ TE$')
+            r'$\text{Complete TE}$')
         axs[axs_row].set_xscale('log')
         axs[axs_row].yaxis.set_ticks_position('both')
         #axs[axs_row].set_ylim(bottom=0)
@@ -2508,12 +2197,6 @@ def violin_TE_empirical_vs_WS_p():
         'TE_complete_empirical',
         'TE_omnibus_empirical',
         ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # # Get a numpy array from a list of arrays
@@ -2597,9 +2280,9 @@ def violin_TE_empirical_vs_WS_p():
         )
         # Set axes properties
         axs[axs_row].set_xlabel(
-            r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
+            r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
         axs[axs_row].set_ylabel(
-            r'$TE\ (empirical)$')
+            r'$\text{TE (empirical)}$')
         axs[axs_row].set_xscale('log')
         axs[axs_row].yaxis.set_ticks_position('both')
         if algorithm == 'bTE_greedy':
@@ -2625,12 +2308,6 @@ def violin_TE_theoretical_vs_WS_p():
         'TE_apparent_theoretical_causal_vars',
         'TE_apparent_theoretical_inferred_vars',
         ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Flatten TE matrices and ignore zeros
@@ -2729,13 +2406,13 @@ def violin_TE_theoretical_vs_WS_p():
         )
         # Set axes properties
         axs[axs_row].set_xlabel(
-            r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
+            r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
         axs[axs_row].set_xscale('log')
         axs[axs_row].yaxis.set_ticks_position('both')
         if algorithm == 'bTE_greedy':
-            axs[axs_row].set_ylabel(r'$Apparent\ TE\ (theoretical)$')
+            axs[axs_row].set_ylabel(r'$\text{Apparent TE (theoretical)}$')
         if algorithm == 'mTE_greedy':
-            axs[axs_row].set_ylabel(r'$Complete\ TE\ (theoretical)$')
+            axs[axs_row].set_ylabel(r'$\text{Complete TE (theoretical)}$')
         axs[axs_row].legend()
         #axs[axs_row].set_ylim(bottom=0)
     return fig
@@ -2752,12 +2429,6 @@ def violin_AIS_theoretical_vs_WS_p():
         'AIS_theoretical_causal_vars',
         'AIS_theoretical_inferred_vars',
         ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -2837,9 +2508,9 @@ def violin_AIS_theoretical_vs_WS_p():
         )
         # Set axes properties
         axs[axs_row].set_xlabel(
-            r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
+            r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
         axs[axs_row].set_ylabel(
-            r'$AIS\ (theoretical)$')
+            r'$\text{AIS (theoretical)}$')
         axs[axs_row].set_xscale('log')
         axs[axs_row].yaxis.set_ticks_position('both')
         #axs[axs_row].set_ylim(bottom=0)
@@ -2862,10 +2533,6 @@ def violin_TE_apparent_and_conditional_pairs():
         df_interest['algorithm'] = df['algorithm']
     df_interest = df_interest.loc[
         df_interest['algorithm'] == algorithm_interest].drop('algorithm', 1)
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Get a numpy array from a list of arrays
@@ -2957,9 +2624,9 @@ def violin_TE_apparent_and_conditional_pairs():
             )
             # Set axes properties
             axs[axs_row, axs_col].set_xlabel(
-                r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
+                r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
             axs[axs_row, axs_col].set_ylabel(
-                r'$TE\ (theoretical)$')
+                r'$\text{TE (theoretical)}$')
             axs[axs_row, axs_col].set_xscale('log')
             axs[axs_row, axs_col].yaxis.set_ticks_position('both')
             axs[axs_row, axs_col].legend()
@@ -2980,12 +2647,6 @@ def plot_omnibus_TE_empirical_vs_theoretical_causal_vars():
     # Select data of interest
     df_interest = df[parameters_explored + [
         'TE_omnibus_empirical', 'TE_omnibus_theoretical_causal_vars']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -3023,9 +2684,9 @@ def plot_omnibus_TE_empirical_vs_theoretical_causal_vars():
                     'g--')
             # Set axes properties
             axs[axs_row, axs_col].set_xlabel(
-                r'$TE\ theoretical$', horizontalalignment='right', x=1.0)
+                r'$\text{TE theoretical}$', horizontalalignment='right', x=1.0)
             axs[axs_row, axs_col].set_ylabel(
-                r'$TE\ empirical$')
+                r'$\text{TE empirical}$')
             # axs[axs_row, axs_col].set_xscale('log')
             axs[axs_row, axs_col].yaxis.set_ticks_position('both')
             axs[axs_row, axs_col].set_xlim(left=0)
@@ -3087,8 +2748,8 @@ def plot_relative_error_TE_empirical_vs_theoretical_causal_vars_vs_WS_p():
             df_algorithm['TE_err_abs_relative'].values,
             alpha=0.3)
     # Set axes properties
-    axs[0].set_xlabel(r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
-    axs[0].set_ylabel(r'$Relative\ TE\ error$')
+    axs[0].set_xlabel(r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(r'$\text{Relative TE error}$')
     axs[0].set_xscale('log')
     axs[0].set_yscale('log')
     axs[0].yaxis.set_ticks_position('both')
@@ -3103,12 +2764,6 @@ def plot_spectral_radius_vs_WS_p_alpha_interest():
     # Select data of interest
     df_interest = df[
         parameters_explored + ['spectral_radius']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     df_interest = df_interest.loc[
@@ -3135,7 +2790,7 @@ def plot_spectral_radius_vs_WS_p_alpha_interest():
         alpha=0.3
     )
     # Set axes properties
-    axs[0].set_xlabel(r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
+    axs[0].set_xlabel(r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
     axs[0].set_ylabel(r'$\rho$')
     axs[0].set_xscale('log')
     axs[0].yaxis.set_ticks_position('both')
@@ -3143,7 +2798,7 @@ def plot_spectral_radius_vs_WS_p_alpha_interest():
     return fig
 
 
-def plot_performance_vs_WS_p():
+def plot_performance_vs_WS_p_T_interest():
     # Plot performance tests vs. Watts-Strogatz rewiring
     # probability (scatter error)
     # Subplots: algorithms
@@ -3153,12 +2808,6 @@ def plot_performance_vs_WS_p():
     # Select data of interest
     df_interest = df[
         parameters_explored + ['precision', 'recall', 'specificity']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters will be aggregated or averaged
@@ -3211,8 +2860,8 @@ def plot_performance_vs_WS_p():
             alpha=0.3
         )
         # Set axes properties
-        axs[axs_row].set_xlabel(r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
-        axs[axs_row].set_ylabel(r'$Performance$')
+        axs[axs_row].set_xlabel(r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
+        axs[axs_row].set_ylabel(r'$\text{Performance}$')
         axs[axs_row].set_xscale('log')
         axs[axs_row].yaxis.set_ticks_position('both')
         axs[axs_row].set_ylim(bottom=0)
@@ -3225,6 +2874,78 @@ def plot_performance_vs_WS_p():
     return fig
 
 
+def plot_performance_vs_WS_p():
+    # Plot performance tests vs. Watts-Strogatz rewiring
+    # probability (scatter error)
+    # Subplots: algorithms
+    subplots_v = len(algorithms)
+    subplots_h = len(samples_n_range)
+    fig, axs = my_subplots(subplots_v, subplots_h)
+    # Select data of interest
+    df_interest = df[
+        parameters_explored + ['precision', 'recall', 'specificity']]
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    for (axs_col, samples_n) in enumerate(samples_n_range):
+        # Select dataframe entries(i.e runs) with the desired property
+        df_samples_n = df_interest.loc[
+            df_interest['samples_n'] == samples_n].drop('samples_n', 1)
+        for (axs_row, algorithm) in enumerate(algorithms):
+            # Set subplot title
+            axs[axs_row, axs_col].set_title('{0} (T={1})'.format(
+                algorithm_names[algorithm],
+                samples_n))
+            # Select dataframe entries(i.e runs) with the same algorithm
+            df_algorithm = df_samples_n.loc[
+                df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+            # Group by WS_p
+            df_aggregate = df_algorithm.groupby('WS_p').agg(
+                lambda x: list(x))
+            # Ensure that only the desired parameters are aggregated or averaged
+            df_keys_remaining = df_aggregate.columns.get_level_values(0)
+            check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+            # Plot precision
+            axs[axs_row, axs_col].plot(
+                WS_p_range,
+                [np.nanmean(df_aggregate['precision'][WS_p])
+                    for WS_p in WS_p_range],)
+            axs[axs_row, axs_col].scatter(
+                df_algorithm['WS_p'].values.astype(float).tolist(),
+                df_algorithm['precision'].values,
+                alpha=0.3)
+            # Plot recall
+            axs[axs_row, axs_col].plot(
+                WS_p_range,
+                [np.nanmean(df_aggregate['recall'][WS_p])
+                for WS_p in WS_p_range],)
+            axs[axs_row, axs_col].scatter(
+                df_algorithm['WS_p'].values.astype(float).tolist(),
+                df_algorithm['recall'].values,
+                alpha=0.3)
+            # Plot false positive rate
+            axs[axs_row, axs_col].plot(
+                WS_p_range,
+                [np.nanmean(df_aggregate['specificity'][WS_p])
+                for WS_p in WS_p_range])
+            axs[axs_row, axs_col].scatter(
+                df_algorithm['WS_p'].values.astype(float).tolist(),
+                df_algorithm['specificity'].values,
+                alpha=0.3)
+            # Set axes properties
+            axs[axs_row, 0].set_ylabel(r'$\text{Performance}$')
+            axs[axs_row, axs_col].set_xscale('log')
+            axs[axs_row, axs_col].yaxis.set_ticks_position('both')
+            axs[axs_row, axs_col].set_xlim(left=0.003, right=2.)
+            axs[axs_row, axs_col].set_ylim(bottom=0)
+            # Add legend
+            axs[axs_row, axs_col].legend(
+                labels=['Precision', 'Recall', 'Specificity'],
+                loc='lower left')
+        axs[axs_row, axs_col].set_xlabel(r'$\text{Rewiring probability}$') #, horizontalalignment='right', x=1.0)
+
+    return fig
+
+
 def plot_density_vs_WS_p():
     # Plot density vs. Watts-Strogatz rewiring prob
     # Legend: algorithms
@@ -3233,29 +2954,24 @@ def plot_density_vs_WS_p():
     df_interest = df[parameters_explored + [
         'density_real',
         'density_inferred']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters will be aggregated or averaged
     parameters_to_average = {'repetition_i'}
-    # Plot average path lenght real
-    df_algorithm = df_interest.loc[df_interest['algorithm'] == algorithms[-1]]
-    df_aggregate = df_algorithm.groupby('WS_p').agg(lambda x: list(x))
+    # Plot real values
+    df_aggregate = df_interest.groupby('WS_p').agg(lambda x: list(x))
     axs[0].plot(
         WS_p_range,
         [np.nanmean(df_aggregate['density_real'][WS_p])
             for WS_p in WS_p_range],
-        label='Real')
-    axs[0].scatter(
-        df_algorithm['WS_p'].values.astype(float).tolist(),
-        df_algorithm['density_real'].values,
-        alpha=0.3)
-    for algorithm in algorithms:
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    for algorithm_i, algorithm in enumerate(algorithms):
         # Select dataframe entries(i.e runs) with the same number of samples
         df_algorithm = df_interest.loc[
             df_interest['algorithm'] == algorithm].drop('algorithm', 1)
@@ -3270,19 +2986,23 @@ def plot_density_vs_WS_p():
             WS_p_range,
             [np.nanmean(df_aggregate['density_inferred'][WS_p])
              for WS_p in WS_p_range],
-            label=algorithm_names[algorithm])
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],)
         axs[0].scatter(
             df_algorithm['WS_p'].values.astype(float).tolist(),
             df_algorithm['density_inferred'].values,
-            alpha=0.3)
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
     # Set axes properties
-    axs[0].set_xlabel(r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
-    axs[0].set_ylabel(r'$Density$')
+    axs[0].set_xlabel(r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(r'$\text{Density}$')
     axs[0].set_xscale('log')
     axs[0].yaxis.set_ticks_position('both')
-    axs[0].set_ylim(bottom=0)
     # Add legend
-    axs[0].legend()
+    axs[0].legend(loc='upper left')
 
     return fig
 
@@ -3299,12 +3019,6 @@ def scatter_clustering_inferred_vs_clustering_real():
         'clustering_inferred',
         'clustering_real',
         ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -3340,9 +3054,9 @@ def scatter_clustering_inferred_vs_clustering_real():
                 'g--')
             # Set axes properties
             axs[axs_row, axs_col].set_xlabel(
-                r'$Clustering\ real$', horizontalalignment='right', x=1.0)
+                r'$\text{Clustering real}$', horizontalalignment='right', x=1.0)
             axs[axs_row, axs_col].set_ylabel(
-                r'$Clustering\ inferred$')
+                r'$\text{Clustering inferred}$')
             # axs[axs_row, axs_col].set_xscale('log')
             axs[axs_row, axs_col].yaxis.set_ticks_position('both')
             #axs[axs_row, axs_col].set_xlim(left=0)
@@ -3360,12 +3074,6 @@ def plot_clustering_CDF():
     df_interest = df[parameters_explored + [
         'clustering_real',
         'clustering_inferred']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -3430,9 +3138,9 @@ def plot_clustering_CDF():
             # axs[axs_row].plot(xnew, interp_function(xnew))
         # Set axes properties
         axs[axs_row].set_xlabel(
-            r'$Clustering\ coefficient$', horizontalalignment='right', x=1.0)
+            r'$\text{Clustering coefficient}$', horizontalalignment='right', x=1.0)
         axs[axs_row].set_ylabel(
-            r'$CDF$')
+            r'$\text{CDF}$')
         # axs[axs_row, axs_col].set_xscale('log')
         axs[axs_row].yaxis.set_ticks_position('both')
         #axs[axs_row].set_xlim(left=0)
@@ -3451,12 +3159,6 @@ def plot_clustering_vs_WS_p_subplot_algorithm():
     df_interest = df[parameters_explored + [
         'clustering_real',
         'clustering_inferred']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters will be aggregated or averaged
@@ -3496,8 +3198,8 @@ def plot_clustering_vs_WS_p_subplot_algorithm():
             alpha=0.3
         )
         # Set axes properties
-        axs[axs_row].set_xlabel(r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
-        axs[axs_row].set_ylabel(r'$Clustering\ coefficient$')
+        axs[axs_row].set_xlabel(r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
+        axs[axs_row].set_ylabel(r'$\text{Clustering coefficient}$')
         axs[axs_row].set_xscale('log')
         axs[axs_row].yaxis.set_ticks_position('both')
         axs[axs_row].set_ylim(bottom=0)
@@ -3517,29 +3219,32 @@ def plot_clustering_vs_WS_p():
     df_interest = df[parameters_explored + [
         'clustering_real',
         'clustering_inferred']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters will be aggregated or averaged
     parameters_to_average = {'repetition_i'}
-    # Plot average clustering coefficient real
-    df_algorithm = df_interest.loc[df_interest['algorithm'] == algorithms[-1]]
-    df_aggregate = df_algorithm.groupby('WS_p').agg(lambda x: list(x))
+    # Plot real values
+    df_aggregate = df_interest.groupby('WS_p').agg(lambda x: list(x))
     axs[0].plot(
         WS_p_range,
         [np.nanmean(df_aggregate['clustering_real'][WS_p])
             for WS_p in WS_p_range],
-        label='Real')
-    axs[0].scatter(
-        df_algorithm['WS_p'].values.astype(float).tolist(),
-        [np.nanmean(x) for x in df_algorithm['clustering_real'].values],
-        alpha=0.3)
-    for algorithm in algorithms:
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    # axs[0].scatter(
+    #     df_interest['WS_p'].values.astype(float).tolist(),
+    #     [np.nanmean(x) for x in df_interest['clustering_real'].values],
+    #     alpha=0.1,
+    #     color='k',
+    #     marker='x',
+    #     zorder=99,  # bring to foreground
+    #     )
+    for algorithm_i, algorithm in enumerate(algorithms):
         # Select dataframe entries(i.e runs) with the same number of samples
         df_algorithm = df_interest.loc[
             df_interest['algorithm'] == algorithm].drop('algorithm', 1)
@@ -3554,19 +3259,25 @@ def plot_clustering_vs_WS_p():
             WS_p_range,
             [np.nanmean(df_aggregate['clustering_inferred'][WS_p])
              for WS_p in WS_p_range],
-            label=algorithm_names[algorithm])
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
         axs[0].scatter(
             df_algorithm['WS_p'].values.astype(float).tolist(),
             [np.nanmean(x) for x in df_algorithm['clustering_inferred'].values],
-            alpha=0.3)
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
         # Set axes properties
-        axs[0].set_xlabel(r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
-        axs[0].set_ylabel(r'$Clustering\ coefficient$')
+        axs[0].set_xlabel(r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Clustering coefficient}$')
         axs[0].set_xscale('log')
         axs[0].yaxis.set_ticks_position('both')
-        axs[0].set_ylim(bottom=0, top=0.7)
+        axs[0].set_xlim(left=0.003, right=2.)
         # Add legend
-        axs[0].legend()
+        axs[0].legend(loc='upper right')
 
     return fig
 
@@ -3579,12 +3290,6 @@ def plot_clustering_correlation_vs_WS_p():
     df_interest = df[parameters_explored + [
         'clustering_real',
         'clustering_inferred']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters will be aggregated or averaged
@@ -3614,8 +3319,8 @@ def plot_clustering_correlation_vs_WS_p():
             df_algorithm['correlation'].values,
             alpha=0.3)
         # Set axes properties
-        axs[0].set_xlabel(r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
-        axs[0].set_ylabel(r'$Correlation$')
+        axs[0].set_xlabel(r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Correlation}$')
         axs[0].set_xscale('log')
         axs[0].yaxis.set_ticks_position('both')
         # Add legend
@@ -3636,12 +3341,6 @@ def scatter_path_lenght_inferred_vs_path_lenght_real():
         'average_shortest_path_length_inferred',
         'average_shortest_path_length_real',
         ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -3675,9 +3374,9 @@ def scatter_path_lenght_inferred_vs_path_lenght_real():
                 'g--')
             # Set axes properties
             axs[axs_row, axs_col].set_xlabel(
-                r'$Shortest\ path\ real$', horizontalalignment='right', x=1.0)
+                r'$\text{Characteristic path length (real)}$', horizontalalignment='right', x=1.0)
             axs[axs_row, axs_col].set_ylabel(
-                r'$Shortest\ path\ inferred$')
+                r'$\text{Characteristic path length (inferred)}$')
             # axs[axs_row, axs_col].set_xscale('log')
             axs[axs_row, axs_col].yaxis.set_ticks_position('both')
             #axs[axs_row, axs_col].set_xlim(left=0)
@@ -3699,12 +3398,6 @@ def plot_path_lenght_vs_WS_p_subplot_algorithm():
     df_interest = df[parameters_explored + [
         'average_shortest_path_length_real',
         'average_shortest_path_length_inferred']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Convert remaining DataFrame to float type for averaging
@@ -3746,8 +3439,8 @@ def plot_path_lenght_vs_WS_p_subplot_algorithm():
             alpha=0.3
         )
         # Set axes properties
-        axs[axs_row].set_xlabel(r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
-        axs[axs_row].set_ylabel(r'$Shortest\ path\ length$')
+        axs[axs_row].set_xlabel(r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
+        axs[axs_row].set_ylabel(r'$\text{Characteristic path length}$')
         axs[axs_row].set_xscale('log')
         axs[axs_row].yaxis.set_ticks_position('both')
         axs[axs_row].set_ylim(bottom=0)
@@ -3770,29 +3463,30 @@ def plot_path_lenght_vs_WS_p():
     df_interest = df[parameters_explored + [
         'average_shortest_path_length_real',
         'average_shortest_path_length_inferred']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters will be aggregated or averaged
     parameters_to_average = {'repetition_i'}
     # Plot average path lenght real
-    df_algorithm = df_interest.loc[df_interest['algorithm'] == algorithms[-1]]
-    df_aggregate = df_algorithm.groupby('WS_p').agg(lambda x: list(x))
+    df_aggregate = df_interest.groupby('WS_p').agg(lambda x: list(x))
     axs[0].plot(
         WS_p_range,
         [np.nanmean(df_aggregate['average_shortest_path_length_real'][WS_p])
             for WS_p in WS_p_range],
-        label='Real')
-    axs[0].scatter(
-        df_algorithm['WS_p'].values.astype(float).tolist(),
-        df_algorithm['average_shortest_path_length_real'].values,
-        alpha=0.3)
-    for algorithm in algorithms:
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    # axs[0].scatter(
+    #     df_interest['WS_p'].values.astype(float).tolist(),
+    #     df_interest['average_shortest_path_length_real'].values,
+    #     marker='x',
+    #     color='k',
+    #     alpha=0.1)
+    for algorithm_i, algorithm in enumerate(algorithms):
         # Select dataframe entries(i.e runs) with the same number of samples
         df_algorithm = df_interest.loc[
             df_interest['algorithm'] == algorithm].drop('algorithm', 1)
@@ -3807,21 +3501,25 @@ def plot_path_lenght_vs_WS_p():
             WS_p_range,
             [np.nanmean(df_aggregate['average_shortest_path_length_inferred'][WS_p])
              for WS_p in WS_p_range],
-            label=algorithm_names[algorithm]
-        )
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
         axs[0].scatter(
             df_algorithm['WS_p'].values.astype(float).tolist(),
             df_algorithm['average_shortest_path_length_inferred'].values,
-            alpha=0.3
-        )
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
         # Set axes properties
-        axs[0].set_xlabel(r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
-        axs[0].set_ylabel(r'$Shortest\ path\ length$')
+        axs[0].set_xlabel(r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Characteristic path length}$')
         axs[0].set_xscale('log')
         axs[0].yaxis.set_ticks_position('both')
-        axs[0].set_ylim(bottom=0)
+        axs[0].set_xlim(left=0.003, right=2.)
         # Add legend
-        axs[0].legend()
+        axs[0].legend(loc='upper right')
 
     return fig
 
@@ -3833,29 +3531,28 @@ def plot_average_global_efficiency_vs_WS_p():
     df_interest = df[parameters_explored + [
         'average_global_efficiency_real',
         'average_global_efficiency_inferred']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters will be aggregated or averaged
     parameters_to_average = {'repetition_i'}
     # Plot global_efficiency real
-    df_algorithm = df_interest.loc[df_interest['algorithm'] == algorithms[-1]]
-    df_aggregate = df_algorithm.groupby('WS_p').agg(lambda x: list(x))
+    df_aggregate = df_interest.groupby('WS_p').agg(lambda x: list(x))
     axs[0].plot(
         WS_p_range,
         [np.nanmean(df_aggregate['average_global_efficiency_real'][WS_p])
             for WS_p in WS_p_range],
-        label='Real')
-    axs[0].scatter(
-        df_algorithm['WS_p'].values.astype(float).tolist(),
-        df_algorithm['average_global_efficiency_real'].values,
-        alpha=0.3)
-    for algorithm in algorithms:
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    # axs[0].scatter(
+    #     df_algorithm['WS_p'].values.astype(float).tolist(),
+    #     df_algorithm['average_global_efficiency_real'].values,
+    #     alpha=0.3)
+    for algorithm_i, algorithm in enumerate(algorithms):
         # Select dataframe entries(i.e runs) with the same number of samples
         df_algorithm = df_interest.loc[
             df_interest['algorithm'] == algorithm].drop('algorithm', 1)
@@ -3870,19 +3567,25 @@ def plot_average_global_efficiency_vs_WS_p():
             WS_p_range,
             [np.nanmean(df_aggregate['average_global_efficiency_inferred'][WS_p])
              for WS_p in WS_p_range],
-            label=algorithm_names[algorithm])
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
         axs[0].scatter(
             df_algorithm['WS_p'].values.astype(float).tolist(),
             df_algorithm['average_global_efficiency_inferred'].values,
-            alpha=0.3)
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
         # Set axes properties
-        axs[0].set_xlabel(r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
-        axs[0].set_ylabel(r'$Global\ efficiency$')
+        axs[0].set_xlabel(r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Global efficiency}$')
         axs[0].set_xscale('log')
         axs[0].yaxis.set_ticks_position('both')
-        axs[0].set_ylim(bottom=0)
+        axs[0].set_xlim(left=0.003, right=2.)
         # Add legend
-        axs[0].legend()
+        axs[0].legend(loc='lower right')
 
     return fig
 
@@ -3894,29 +3597,33 @@ def plot_local_efficiency_vs_WS_p():
     df_interest = df[parameters_explored + [
         'local_efficiency_real',
         'local_efficiency_inferred']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters will be aggregated or averaged
     parameters_to_average = {'repetition_i'}
     # Real
-    df_algorithm = df_interest.loc[df_interest['algorithm'] == algorithms[-1]]
-    df_aggregate = df_algorithm.groupby('WS_p').agg(lambda x: list(x))
+    df_aggregate = df_interest.groupby('WS_p').agg(lambda x: list(x))
     axs[0].plot(
         WS_p_range,
         [np.nanmean(df_aggregate['local_efficiency_real'][WS_p])
             for WS_p in WS_p_range],
-        label='Real')
-    axs[0].scatter(
-        df_algorithm['WS_p'].values.astype(float).tolist(),
-        [np.nanmean(x) for x in df_algorithm['local_efficiency_real'].values],
-        alpha=0.3)
-    for algorithm in algorithms:
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    # axs[0].scatter(
+    #     df_algorithm['WS_p'].values.astype(float).tolist(),
+    #     [np.nanmean(x) for x in df_algorithm['local_efficiency_real'].values],
+    #     alpha=0.3,
+    #     linestyle = 'None',
+    #     color='k',
+    #     marker='x',
+    #     zorder=99,  # bring to foreground
+    #     )
+    for algorithm_i, algorithm in enumerate(algorithms):
         # Select dataframe entries(i.e runs) with the same number of samples
         df_algorithm = df_interest.loc[
             df_interest['algorithm'] == algorithm].drop('algorithm', 1)
@@ -3931,19 +3638,25 @@ def plot_local_efficiency_vs_WS_p():
             WS_p_range,
             [np.nanmean(df_aggregate['local_efficiency_inferred'][WS_p])
              for WS_p in WS_p_range],
-            label=algorithm_names[algorithm])
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
         axs[0].scatter(
             df_algorithm['WS_p'].values.astype(float).tolist(),
             [np.nanmean(x) for x in df_algorithm['local_efficiency_inferred'].values],
-            alpha=0.3)
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
         # Set axes properties
-        axs[0].set_xlabel(r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
-        axs[0].set_ylabel(r'$Local\ efficiency$')
+        axs[0].set_xlabel(r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Local efficiency}$')
         axs[0].set_xscale('log')
         axs[0].yaxis.set_ticks_position('both')
-        axs[0].set_ylim(bottom=0)
+        axs[0].set_xlim(left=0.003, right=2.)
         # Add legend
-        axs[0].legend()
+        axs[0].legend(loc='lower left')
 
     return fig
 
@@ -3956,12 +3669,6 @@ def plot_local_efficiency_correlation_vs_WS_p():
     df_interest = df[parameters_explored + [
         'local_efficiency_real',
         'local_efficiency_inferred']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters will be aggregated or averaged
@@ -3991,12 +3698,90 @@ def plot_local_efficiency_correlation_vs_WS_p():
             df_algorithm['correlation'].values,
             alpha=0.3)
         # Set axes properties
-        axs[0].set_xlabel(r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
-        axs[0].set_ylabel(r'$Correlation$')
+        axs[0].set_xlabel(r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Correlation}$')
         axs[0].set_xscale('log')
         axs[0].yaxis.set_ticks_position('both')
         # Add legend
         axs[0].legend()
+
+    return fig
+
+
+def plot_SW_coeff_vs_WS_p(WS_k=4, normalised=True):
+    # Plot average clustering vs. Watts-Strogatz rewiring prob (scatter error)
+    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'clustering_real',
+        'clustering_inferred',
+        'average_shortest_path_length_real',
+        'average_shortest_path_length_inferred']]
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    # Compute normalisation coefficients
+    if normalised:
+        C_lattice = (3 * WS_k - 6) / (4 * WS_k - 4)
+        L_lattice = N_interest / (2 * WS_k)
+    else:
+        C_lattice = 1
+        L_lattice = 1
+    # Plot SW coefficient real
+    df_aggregate = df_interest.groupby('WS_p').agg(lambda x: list(x))
+    axs[0].plot(
+        WS_p_range,
+        (np.array([np.nanmean(df_aggregate['clustering_real'][WS_p]) for WS_p in WS_p_range]) / C_lattice) / (np.array([np.nanmean(df_aggregate['average_shortest_path_length_real'][WS_p]) for WS_p in WS_p_range]) / L_lattice),
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    # axs[0].scatter(
+    #     df_interest['WS_p'].values.astype(float).tolist(),
+    #     [np.nanmean(x) / C_lattice for x in df_interest['clustering_real'].values] / (df_interest['average_shortest_path_length_real'].to_numpy() / L_lattice),
+    #     alpha=0.1,
+    #     linestyle = 'None',
+    #     color='k',
+    #     marker='x',
+    #     zorder=99,  # bring to foreground
+    #     )
+    for algorithm_i, algorithm in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same algorithm
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by WS_p
+        df_aggregate = df_algorithm.groupby('WS_p').agg(
+            lambda x: list(x))
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Plot SW coefficient inferred
+        axs[0].plot(
+            WS_p_range,
+            (np.array([np.nanmean(df_aggregate['clustering_inferred'][WS_p]) for WS_p in WS_p_range]) / C_lattice) / (np.array([np.nanmean(df_aggregate['average_shortest_path_length_inferred'][WS_p]) for WS_p in WS_p_range]) / L_lattice),
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        axs[0].scatter(
+            df_algorithm['WS_p'].values.astype(float).tolist(),
+            [np.nanmean(x) / C_lattice for x in df_algorithm['clustering_inferred'].values] / (df_algorithm['average_shortest_path_length_inferred'].to_numpy() / L_lattice),
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+    # Set axes properties
+    axs[0].set_xlabel(r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(r'$\text{Small-world coefficient}$')
+    axs[0].set_xscale('log')
+    axs[0].yaxis.set_ticks_position('both')
+    axs[0].set_xlim(left=0.003, right=2.)
+    # Add legend
+    axs[0].legend(loc='upper right')
 
     return fig
 
@@ -4010,31 +3795,39 @@ def plot_SW_index_vs_WS_p(WS_k=4):
         'clustering_inferred',
         'average_shortest_path_length_real',
         'average_shortest_path_length_inferred']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters will be aggregated or averaged
     parameters_to_average = {'repetition_i'}
-    # Compute normalisation coefficients
-    normalisation_clustering = (3 * WS_k - 6) / (4 * WS_k - 4)
-    normalisation_path_length = N_interest / (2 * WS_k)
+    # Compute normalisation coefficients (see Neal 2017, DOI: 10.1017/nws.2017.5)
+    C_lattice = (3 * WS_k - 6) / (4 * WS_k - 4)
+    L_lattice = N_interest / (2 * WS_k)
+    C_random = WS_k / N_interest
+    L_random = np.log(N_interest) / np.log(WS_k)
     # Plot SW index real
-    df_algorithm = df_interest.loc[df_interest['algorithm'] == algorithms[-1]]
-    df_aggregate = df_algorithm.groupby('WS_p').agg(lambda x: list(x))
+    df_aggregate = df_interest.groupby('WS_p').agg(lambda x: list(x))
+    C_real = np.array([np.nanmean(df_aggregate['clustering_real'][WS_p]) for WS_p in WS_p_range])
+    L_real = np.array([np.nanmean(df_aggregate['average_shortest_path_length_real'][WS_p]) for WS_p in WS_p_range])
     axs[0].plot(
         WS_p_range,
-        (np.array([np.nanmean(df_aggregate['clustering_real'][WS_p]) for WS_p in WS_p_range]) / normalisation_clustering) / (np.array([np.nanmean(df_aggregate['average_shortest_path_length_real'][WS_p]) for WS_p in WS_p_range]) / normalisation_path_length),
-        label='Real')
-    axs[0].scatter(
-        df_algorithm['WS_p'].values.astype(float).tolist(),
-        [np.nanmean(x) / normalisation_clustering for x in df_algorithm['clustering_real'].values] / (df_algorithm['average_shortest_path_length_real'].to_numpy() / normalisation_path_length),
-        alpha=0.3)
-    for algorithm in algorithms:
+        ((L_real - L_lattice) / (L_random - L_lattice)) * ((C_real - C_random) / (C_lattice - C_random)),
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    # axs[0].scatter(
+    #     df_algorithm['WS_p'].values.astype(float).tolist(),
+    #     ((df_algorithm['average_shortest_path_length_real'].to_numpy() - L_lattice) / (L_random - L_lattice)) * (np.array([np.nanmean(x) - C_random for x in df_algorithm['clustering_real'].values]) / (C_lattice - C_random)),
+    #     alpha=0.3,
+    #     linestyle = 'None',
+    #     color='k',
+    #     marker='x',
+    #     zorder=99,  # bring to foreground
+    #     )
+    for algorithm_i, algorithm in enumerate(algorithms):
         # Select dataframe entries(i.e runs) with the same algorithm
         df_algorithm = df_interest.loc[
             df_interest['algorithm'] == algorithm].drop('algorithm', 1)
@@ -4044,23 +3837,31 @@ def plot_SW_index_vs_WS_p(WS_k=4):
         # Ensure that only the desired parameters are aggregated or averaged
         df_keys_remaining = df_aggregate.columns.get_level_values(0)
         check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        L_inferred = np.array([np.nanmean(df_aggregate['average_shortest_path_length_inferred'][WS_p]) for WS_p in WS_p_range])
+        C_inferred = np.array([np.nanmean(df_aggregate['clustering_inferred'][WS_p]) for WS_p in WS_p_range])
         # Plot SW index inferred
         axs[0].plot(
             WS_p_range,
-            (np.array([np.nanmean(df_aggregate['clustering_inferred'][WS_p]) for WS_p in WS_p_range]) / normalisation_clustering) / (np.array([np.nanmean(df_aggregate['average_shortest_path_length_inferred'][WS_p]) for WS_p in WS_p_range]) / normalisation_path_length),
-            label=algorithm_names[algorithm])
+            ((L_inferred - L_lattice) / (L_random - L_lattice)) * ((C_inferred - C_random) / (C_lattice - C_random)),
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
         axs[0].scatter(
             df_algorithm['WS_p'].values.astype(float).tolist(),
-            [np.nanmean(x) / normalisation_clustering for x in df_algorithm['clustering_inferred'].values] / (df_algorithm['average_shortest_path_length_inferred'].to_numpy() / normalisation_path_length),
-            alpha=0.3)
+            ((df_algorithm['average_shortest_path_length_inferred'].to_numpy() - L_lattice) / (L_random - L_lattice)) * (np.array([np.nanmean(x) - C_random for x in df_algorithm['clustering_inferred'].values]) / (C_lattice - C_random)),
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
     # Set axes properties
-    axs[0].set_xlabel(r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
-    axs[0].set_ylabel(r'$Small-world\ index$')
+    axs[0].set_xlabel(r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(r'$\text{Small-world index}$')
     axs[0].set_xscale('log')
     axs[0].yaxis.set_ticks_position('both')
-    axs[0].set_ylim(bottom=0)
+    axs[0].set_xlim(left=0.003, right=2.)
     # Add legend
-    axs[0].legend()
+    axs[0].legend(loc='upper right')
 
     return fig
 
@@ -4077,12 +3878,6 @@ def scatter_out_degree_inferred_vs_out_degree_real():
         'out_degree_inferred',
         'out_degree_real',
         ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -4118,166 +3913,13 @@ def scatter_out_degree_inferred_vs_out_degree_real():
                 'g--')
             # Set axes properties
             axs[axs_row, axs_col].set_xlabel(
-                r'$Out-degree\ real$', horizontalalignment='right', x=1.0)
+                r'$\text{Out-degree real}$', horizontalalignment='right', x=1.0)
             axs[axs_row, axs_col].set_ylabel(
-                r'$Out-degree\ inferred$')
+                r'$\text{Out-degree inferred}$')
             # axs[axs_row, axs_col].set_xscale('log')
             axs[axs_row, axs_col].yaxis.set_ticks_position('both')
             #axs[axs_row, axs_col].set_xlim(left=0)
             #axs[axs_row, axs_col].set_ylim(bottom=0)
-    return fig
-
-
-def plot_out_degree_CDF():
-    # Plot CDF of out-degree for different algorithms
-    # Subplots vertical: WS_p
-    subplots_v = len(WS_p_range)
-    subplots_h = 1
-    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
-    # Select data of interest
-    df_interest = df[parameters_explored + [
-        'out_degree_real',
-        'out_degree_inferred']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
-        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
-    # Choose which of the explored parameters to collect data over
-    parameters_to_average = {'repetition_i'}
-    for (axs_row, WS_p) in enumerate(WS_p_range):
-        # Set subplot title
-        axs[axs_row].set_title(r'$p={0}$'.format(WS_p))
-        # Select dataframe entries(i.e runs) with the same WS_p
-        df_WS_p = df_interest.loc[
-            df_interest['WS_p'] == WS_p].drop('WS_p', 1)
-        # Group by algorithm and concatenate TE values lists
-        df_aggregate = df_WS_p.groupby('algorithm').agg(
-            lambda x: x.tolist())
-        # Ensure that only the desired parameters are aggregated or averaged
-        df_keys_remaining = df_aggregate.columns.get_level_values(0)
-        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
-        # Plot CDF
-        df_algorithm = df_WS_p.loc[df_WS_p['algorithm'] == algorithms[0]]
-        out_degree_real = np.concatenate(df_algorithm.out_degree_real)
-        out_degree_real_sorted = np.sort(out_degree_real)
-        # y = np.arange(len(x)) / float(len(x))
-        # y = (np.arange(len(x)) + 0.5) / len(x)
-        cdf = np.arange(1 , len(out_degree_real) + 1) / float(len(out_degree_real))
-        axs[axs_row].plot(
-            out_degree_real_sorted,
-            cdf,
-            label='Real'
-            )
-        # # Interpolate
-        # x_unique = [out_degree_real_sorted[0]]
-        # y_unique = [cdf[0]]
-        # for (i, x) in enumerate(out_degree_real_sorted):
-        #     if x > x_unique[-1]:
-        #         x_unique.append(x)
-        #         y_unique.append(cdf[i])
-        # xnew = np.linspace(out_degree_real.min(), out_degree_real.max(), 500)
-        # interp_function = interp1d(x_unique, y_unique, kind='slinear')
-        # axs[axs_row].plot(xnew, interp_function(xnew))
-
-        for algorithm in algorithms:
-            df_algorithm = df_WS_p.loc[df_WS_p['algorithm'] == algorithm]
-            out_degree_inferred = np.concatenate(df_algorithm.out_degree_inferred)
-            # Plot CDF
-            out_degree_inferred_sorted = np.sort(out_degree_inferred)
-            # y = np.arange(len(x)) / float(len(x))
-            # y = (np.arange(len(x)) + 0.5) / len(x)
-            cdf = np.arange(1 , len(out_degree_inferred) + 1) / float(len(out_degree_inferred))
-            axs[axs_row].plot(
-                out_degree_inferred_sorted,
-                cdf,
-                label=algorithm_names[algorithm]
-                )
-            # # Interpolate
-            # x_unique = [out_degree_inferred_sorted[0]]
-            # y_unique = [cdf[0]]
-            # for (i, x) in enumerate(out_degree_inferred_sorted):
-            #     if x > x_unique[-1]:
-            #         x_unique.append(x)
-            #         y_unique.append(cdf[i])
-            # xnew = np.linspace(out_degree_inferred.min(), out_degree_inferred.max(), 500)
-            # interp_function = interp1d(x_unique, y_unique, kind='slinear')
-            # axs[axs_row].plot(xnew, interp_function(xnew))
-        # Set axes properties
-        axs[axs_row].set_xlabel(
-            r'$Out-degree$', horizontalalignment='right', x=1.0)
-        axs[axs_row].set_ylabel(
-            r'$CDF$')
-        # axs[axs_row, axs_col].set_xscale('log')
-        axs[axs_row].yaxis.set_ticks_position('both')
-        #axs[axs_row].set_xlim(left=0)
-        #axs[axs_row].set_ylim(bottom=0)
-        axs[axs_row].legend()
-    return fig
-
-
-def plot_out_degree_vs_WS_p():
-    # Plot out-degree vs. Watts-Strogatz rewiring prob (scatter error)
-    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
-    # Select data of interest
-    df_interest = df[parameters_explored + [
-        'out_degree_real',
-        'out_degree_inferred']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
-        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
-    # Choose which of the explored parameters will be aggregated or averaged
-    parameters_to_average = {'repetition_i'}
-    # Plot real out-degree
-    df_algorithm = df_interest.loc[df_interest['algorithm'] == algorithms[-1]]
-    df_aggregate = df_algorithm.groupby('WS_p').agg(lambda x: list(x))
-    axs[0].plot(
-        WS_p_range,
-        [np.nanmean(df_aggregate['out_degree_real'][WS_p])
-            for WS_p in WS_p_range],
-        label='Real'
-    )
-    axs[0].scatter(
-        df_algorithm['WS_p'].values.astype(float).tolist(),
-        [np.nanmean(x) for x in df_algorithm['out_degree_real'].values],
-        alpha=0.3
-    )
-    for algorithm in algorithms:
-        # Select dataframe entries(i.e runs) with the same number of samples
-        df_algorithm = df_interest.loc[
-            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
-        # Group by WS_p
-        df_aggregate = df_algorithm.groupby('WS_p').agg(
-            lambda x: list(x))
-        # Ensure that only the desired parameters are aggregated or averaged
-        df_keys_remaining = df_aggregate.columns.get_level_values(0)
-        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
-        # Plot average clustering coefficient inferred
-        axs[0].plot(
-            WS_p_range,
-            [np.nanmean(df_aggregate['out_degree_inferred'][WS_p])
-             for WS_p in WS_p_range],
-            label=algorithm_names[algorithm])
-        axs[0].scatter(
-            df_algorithm['WS_p'].values.astype(float).tolist(),
-            [np.nanmean(x) for x in df_algorithm['out_degree_inferred'].values],
-            alpha=0.3)
-        # Set axes properties
-        axs[0].set_xlabel(r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
-        axs[0].set_ylabel(r'$Average\ out-degree$')
-        axs[0].set_xscale('log')
-        axs[0].yaxis.set_ticks_position('both')
-        # Add legend
-        axs[0].legend()
-
     return fig
 
 
@@ -4296,12 +3938,6 @@ def scatter_omnibus_TE_vs_out_degree_real():
         'TE_omnibus_theoretical_causal_vars',
         'TE_omnibus_empirical'
         ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -4339,9 +3975,9 @@ def scatter_omnibus_TE_vs_out_degree_real():
                 label='Theoretical')
             # Set axes properties
             axs[axs_row, axs_col].set_xlabel(
-                r'$Real\ out-degree$', horizontalalignment='right', x=1.0)
+                r'$\text{Real out-degree}$', horizontalalignment='right', x=1.0)
             axs[axs_row, axs_col].set_ylabel(
-                r'$TE$')
+                r'$\text{TE}$')
             # axs[axs_row, axs_col].set_xscale('log')
             axs[axs_row, axs_col].yaxis.set_ticks_position('both')
             #axs[axs_row, axs_col].set_xlim(left=0)
@@ -4363,12 +3999,6 @@ def scatter_performance_vs_out_degree_real():
         'precision_per_target',
         'recall_per_target',
         ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -4406,9 +4036,9 @@ def scatter_performance_vs_out_degree_real():
                 label='Recall')
             # Set axes properties
             axs[axs_row, axs_col].set_xlabel(
-                r'$Real\ out-degree$', horizontalalignment='right', x=1.0)
+                r'$\text{Real out-degree}$', horizontalalignment='right', x=1.0)
             axs[axs_row, axs_col].set_ylabel(
-                r'$Performance$')
+                r'$\text{Performance}$')
             # axs[axs_row, axs_col].set_xscale('log')
             axs[axs_row, axs_col].yaxis.set_ticks_position('both')
             #axs[axs_row, axs_col].set_xlim(left=0)
@@ -4430,12 +4060,6 @@ def scatter_performance_vs_clustering_real():
         'precision_per_target',
         'recall_per_target',
         ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -4473,9 +4097,9 @@ def scatter_performance_vs_clustering_real():
                 label='Recall')
             # Set axes properties
             axs[axs_row, axs_col].set_xlabel(
-                r'$Real\ clustering\ coefficient$', horizontalalignment='right', x=1.0)
+                r'$\text{Real clustering coefficient}$', horizontalalignment='right', x=1.0)
             axs[axs_row, axs_col].set_ylabel(
-                r'$Performance$')
+                r'$\text{Performance}$')
             # axs[axs_row, axs_col].set_xscale('log')
             axs[axs_row, axs_col].yaxis.set_ticks_position('both')
             #axs[axs_row, axs_col].set_xlim(left=0)
@@ -4499,12 +4123,6 @@ def scatter_performance_vs_omnibus_TE():
         'recall_per_target',
         'TE_omnibus_theoretical_causal_vars',
         ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -4542,9 +4160,9 @@ def scatter_performance_vs_omnibus_TE():
                 label='Recall')
             # Set axes properties
             axs[axs_row, axs_col].set_xlabel(
-                r'$TE$', horizontalalignment='right', x=1.0)
+                r'$\text{TE}$', horizontalalignment='right', x=1.0)
             axs[axs_row, axs_col].set_ylabel(
-                r'$Performance$')
+                r'$\text{Performance}$')
             # axs[axs_row, axs_col].set_xscale('log')
             axs[axs_row, axs_col].yaxis.set_ticks_position('both')
             #axs[axs_row, axs_col].set_xlim(left=0)
@@ -4565,12 +4183,6 @@ def scatter_performance_vs_lattice_distance():
         'precision_per_distance',
         'recall_per_distance',
         ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -4609,9 +4221,9 @@ def scatter_performance_vs_lattice_distance():
                 label='Recall')
             # Set axes properties
             axs[axs_row, axs_col].set_xlabel(
-                r'$Distance$', horizontalalignment='right', x=1.0)
+                r'$\text{Distance}$', horizontalalignment='right', x=1.0)
             axs[axs_row, axs_col].set_ylabel(
-                r'$Performance$')
+                r'$\text{Performance}$')
             # axs[axs_row, axs_col].set_xscale('log')
             axs[axs_row, axs_col].yaxis.set_ticks_position('both')
             #axs[axs_row, axs_col].set_xlim(left=0)
@@ -4632,12 +4244,6 @@ def plot_performance_vs_WS_p_group_distance():
         parameters_explored + [
             'precision_per_distance',
             'recall_per_distance']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters will be aggregated or averaged
@@ -4750,8 +4356,8 @@ def plot_performance_vs_WS_p_group_distance():
             alpha=0.3
         )
         # Set axes properties
-        axs[axs_row].set_xlabel(r'$Rewiring\ probability$', horizontalalignment='right', x=1.0)
-        axs[axs_row].set_ylabel(r'$Performance$')
+        axs[axs_row].set_xlabel(r'$\text{Rewiring probability}$', horizontalalignment='right', x=1.0)
+        axs[axs_row].set_ylabel(r'$\text{Performance}$')
         axs[axs_row].yaxis.set_ticks_position('both')
         #axs[axs_row].set_ylim(bottom=0)
         # Add legend
@@ -4776,12 +4382,6 @@ def barchart_precision_per_motif():
     gs.update(wspace=0.3)
     # Get main plot axis
     ax_main = plt.subplot(gs[:-1, :])
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -4856,8 +4456,8 @@ def barchart_precision_per_motif():
             i += 1
         # Set plot labels
         # axs[axs_row, 0].set_xlabel(
-        #     r'$Motif$', horizontalalignment='right', x=1.0)
-        ax_main.set_ylabel(r'$Precision$')
+        #     r'$\text{Motif}$', horizontalalignment='right', x=1.0)
+        ax_main.set_ylabel(r'$\text{Precision}$')
         # Add legend
         ax_main.legend(loc='lower right')
         # Set figure ratio
@@ -4885,12 +4485,6 @@ def barchart_recall_per_motif():
     gs.update(wspace=0.3)
     # Get main plot axis
     ax_main = plt.subplot(gs[:-1, :])
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -4964,7 +4558,7 @@ def barchart_recall_per_motif():
             plt.axis('off')
             i += 1
         # Set plot labels
-        ax_main.set_ylabel(r'$Recall$')
+        ax_main.set_ylabel(r'$\text{Recall}$')
         # Add legend
         ax_main.legend(loc='lower right')
         # Set figure ratio
@@ -4989,12 +4583,6 @@ def imshow_TE_complete_theoretical_causal_vars():
     df_interest = df[parameters_explored + [
         'TE_complete_theoretical_inferred_vars',
         'TE_complete_theoretical_causal_vars']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Average TE values over the lags to obtain a NxN matrix (exclude zeros)
@@ -5066,12 +4654,6 @@ def imshow_TE_apparent_theoretical_causal_vars():
     df_interest = df[parameters_explored + [
         'TE_apparent_theoretical_inferred_vars',
         'TE_apparent_theoretical_causal_vars']]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Average TE values over the lags to obtain a NxN matrix (exclude zeros)
@@ -5153,10 +4735,6 @@ def scatter_performance_vs_in_degree_real():
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
     df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
     parameters_to_average = {'repetition_i'}
@@ -5188,7 +4766,6 @@ def scatter_performance_vs_in_degree_real():
         axs[axs_col].plot(
             in_degree_real_unique,
             mean_values,
-            label='Mean',
             )
         # Scatter recall
         axs[axs_col].scatter(
@@ -5203,7 +4780,6 @@ def scatter_performance_vs_in_degree_real():
         axs[axs_col].plot(
             in_degree_real_unique,
             mean_values,
-            label='Mean',
             )
         # Set axes properties
         axs[axs_col].set_xlabel(
@@ -5234,10 +4810,6 @@ def scatter_performance_vs_out_degree_real():
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
     df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
     parameters_to_average = {'repetition_i'}
@@ -5261,11 +4833,29 @@ def scatter_performance_vs_out_degree_real():
             out_degree_real,
             precision_per_target,
             label='Precision')
+        # Plot mean values
+        mean_values = []
+        out_degree_real_unique = np.unique(out_degree_real)
+        for i in out_degree_real_unique:
+            mean_values.append(precision_per_target[out_degree_real == i].mean())
+        axs[axs_col].plot(
+            out_degree_real_unique,
+            mean_values,
+            )
         # Scatter
         axs[axs_col].scatter(
             out_degree_real,
             recall_per_target,
             label='Recall')
+        # Plot mean values
+        mean_values = []
+        out_degree_real_unique = np.unique(out_degree_real)
+        for i in out_degree_real_unique:
+            mean_values.append(recall_per_target[out_degree_real == i].mean())
+        axs[axs_col].plot(
+            out_degree_real_unique,
+            mean_values,
+            )
         # Set axes properties
         axs[axs_col].set_xlabel(
             r'$\text{Real out-degree}$', horizontalalignment='right', x=1.0)
@@ -5276,6 +4866,95 @@ def scatter_performance_vs_out_degree_real():
         #axs[axs_col].set_xlim(left=0)
         #axs[axs_col].set_ylim(bottom=0)
         axs[axs_col].legend()
+    return fig
+
+
+def boxplot_BA_performance():
+    # Boxplot of performance
+    # # Legend: algorithms
+    subplots_v = 2
+    subplots_h = len(samples_n_range)
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'precision',
+        'recall',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i', 'samples_n'}
+    
+    # Precision
+    axs_row = 0
+    for axs_col, samples_n in enumerate(samples_n_range):
+        # Set subplot title
+        axs[axs_row, axs_col].set_title(r'$T={0}$'.format(samples_n))
+        for (alg_i, algorithm) in enumerate(algorithms):
+            # Select dataframe entries(i.e runs) with the same algorithm
+            df_algorithm = df_interest.loc[
+                df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+            # Ensure that only the desired parameters are aggregated or averaged
+            df_keys_remaining = df_algorithm.columns
+            check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+            precision = df_algorithm.loc[
+                df_algorithm['samples_n'] == samples_n]['precision'].values.tolist()
+            # Boxplots
+            positions = np.array([1 + alg_i])
+            boxes_width = 0.7
+            axs[axs_row, axs_col].boxplot(
+                precision,
+                positions=positions,
+                widths=boxes_width,
+                #showmeans=True,
+                showfliers=False,
+                #notch=True,
+                #patch_artist=True,
+                #boxprops=dict(color=colors_default[alg_i]),
+                medianprops=dict(color=colors_default[0])
+                )
+        # Set axes properties
+        axs[axs_row, 0].set_ylabel(r'$\text{Precision}$')
+        axs[axs_row, axs_col].yaxis.set_ticks_position('both')
+        axs[axs_row, axs_col].set_xlim(left=0.5)
+        #axs[axs_row, axs_col].set_ylim(bottom=0, top=1.1)
+        #axs[axs_row, axs_col].axvline(x=3.5, color="black", linestyle="--")
+    
+    # Recall
+    axs_row = 1
+    for axs_col, samples_n in enumerate(samples_n_range):
+        # Set subplot title
+        axs[axs_row, axs_col].set_title(r'$T={0}$'.format(samples_n))
+        for (alg_i, algorithm) in enumerate(algorithms):
+            # Select dataframe entries(i.e runs) with the same algorithm
+            df_algorithm = df_interest.loc[
+                df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+            # Ensure that only the desired parameters are aggregated or averaged
+            df_keys_remaining = df_algorithm.columns
+            check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+            recall = df_algorithm.loc[
+                df_algorithm['samples_n'] == samples_n]['recall'].values.tolist()
+            # Boxplots
+            positions = np.array([1 + alg_i])
+            axs[axs_row, axs_col].boxplot(
+                recall,
+                positions=positions,
+                widths=boxes_width,
+                #showmeans=True,
+                showfliers=False,
+                #patch_artist=True,
+                #boxprops=dict(facecolor=colors_default[alg_i]),
+                medianprops=dict(color=colors_default[1])
+                )
+            # labels.append((Patch(color=colors_default[alg_i]), algorithm_names[algorithm]))
+        # Set axes properties
+        axs[axs_row, 0].set_ylabel(r'$\text{Recall}$')
+        axs[axs_row, axs_col].yaxis.set_ticks_position('both')
+        axs[axs_row, axs_col].set_xticks(list(range(1, 1 + len(algorithms))))
+        axs[axs_row, axs_col].set_xticklabels([algorithm_names[algorithm] for algorithm in algorithms])
+        axs[axs_row, axs_col].set_xlim(left=0.5)
+        #axs[axs_row, axs_col].set_ylim(bottom=0, top=1.1)
+        #axs[axs_row, axs_col].axvline(x=3.5, color="black", linestyle="--")
     return fig
 
 
@@ -5294,10 +4973,6 @@ def scatter_FP_per_target_vs_in_degree_real():
         ]]
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -5367,10 +5042,6 @@ def scatter_FP_per_source_vs_in_degree_real():
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
     df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
     parameters_to_average = {'repetition_i'}
@@ -5424,10 +5095,443 @@ def scatter_FP_per_source_vs_in_degree_real():
     return fig
 
 
+def boxplot_BA_average_global_efficiency():
+    # Boxplot of average_global_efficiency
+    # # Legend: algorithms
+    subplots_v = 1
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'average_global_efficiency_real',
+        'average_global_efficiency_inferred',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    # Labels for legend
+    labels = []
+    axs_row = 0
+    for (alg_i, algorithm) in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same algorithm
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_algorithm.columns
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        average_global_efficiency_inferred = df_algorithm.average_global_efficiency_inferred.values.tolist()
+        # Boxplots
+        positions = [1 + alg_i]
+        boxes_width = 0.7
+        axs[axs_row].boxplot(
+            average_global_efficiency_inferred,
+            positions=positions,
+            widths=boxes_width,
+            showfliers=False,
+            #notch=True,
+            #patch_artist=True,
+            #boxprops=dict(color=colors_default[alg_i + 1]),
+            medianprops=dict(color=colors_default[alg_i + 1])
+            )
+        # labels.append((Patch(color=colors_default[alg_i]), algorithm_names[algorithm]))
+    average_global_efficiency_real = df_interest.average_global_efficiency_real.values.tolist()
+    axs[axs_row].boxplot(
+        average_global_efficiency_real,
+        positions=[1 + len(algorithms)],
+        widths=boxes_width,
+        showfliers=False,
+        #notch=True,
+        #patch_artist=True,
+        #boxprops=dict(color=colors_default[alg_i]),
+        medianprops=dict(color='k')
+        )
+    # labels.append((Patch(color='k'), 'Real'))
+    axs[axs_row].set_ylabel(r'$\text{Global efficiency}$')
+    axs[axs_row].yaxis.set_ticks_position('both')
+    axs[axs_row].set_xticks(list(range(1, 2 + len(algorithms))))
+    axs[axs_row].set_xticklabels([algorithm_names[algorithm] for algorithm in algorithms] + ['Real'])
+    axs[axs_row].set_xlim(left=0.5, right=1.5+len(algorithms))
+    axs[axs_row].set_ylim(bottom=0)
+    # axs[axs_row].legend(*zip(*labels), loc='upper right')
+    return fig
+
+
+def boxplot_BA_local_efficiency():
+    # Boxplot of local_efficiency
+    # # Legend: algorithms
+    subplots_v = 1
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'local_efficiency_real',
+        'local_efficiency_inferred',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    # Labels for legend
+    labels = []
+    axs_row = 0
+    for (alg_i, algorithm) in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same algorithm
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_algorithm.columns
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+
+        df_algorithm.local_efficiency_inferred = df_algorithm.local_efficiency_inferred.apply(np.nanmean)
+        local_efficiency_inferred = df_algorithm.local_efficiency_inferred.values.tolist()
+        # Boxplots
+        positions = [1 + alg_i]
+        boxes_width = 0.7
+        axs[axs_row].boxplot(
+            local_efficiency_inferred,
+            positions=positions,
+            widths=boxes_width,
+            showfliers=False,
+            #notch=True,
+            #patch_artist=True,
+            #boxprops=dict(color=colors_default[alg_i = 1]),
+            medianprops=dict(color=colors_default[alg_i + 1])
+            )
+        # labels.append((Patch(color=colors_default[alg_i]), algorithm_names[algorithm]))
+    df_real = pd.DataFrame()
+    df_real.local_efficiency_real = df_interest.local_efficiency_real.apply(np.nanmean)
+    local_efficiency_real = df_real.local_efficiency_real.values.tolist()
+    axs[axs_row].boxplot(
+        local_efficiency_real,
+        positions=[1 + len(algorithms)],
+        widths=boxes_width,
+        showfliers=False,
+        #notch=True,
+        #patch_artist=True,
+        #boxprops=dict(color=colors_default[alg_i]),
+        medianprops=dict(color='k')
+        )
+    # labels.append((Patch(color='k'), 'Real'))
+    axs[axs_row].set_ylabel(r'$\text{Local efficiency}$')
+    axs[axs_row].yaxis.set_ticks_position('both')
+    axs[axs_row].set_xticks(list(range(1, 2 + len(algorithms))))
+    axs[axs_row].set_xticklabels([algorithm_names[algorithm] for algorithm in algorithms] + ['Real'])
+    axs[axs_row].set_xlim(left=0.5, right=1.5+len(algorithms))
+    axs[axs_row].set_ylim(bottom=0)
+    # axs[axs_row].legend(*zip(*labels), loc='upper right')
+    return fig
+
+
+def scatter_clustering_inferred_vs_real():
+    # Scatter clustering inferred vs. real
+    # Subplots vertical: algorithms
+    subplots_v = 1
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'clustering_inferred',
+        'clustering_real',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    for (alg_i, algorithm) in enumerate(algorithms):
+        # Group by algorithm and concatenate values into lists
+        df_aggregate = df_interest.groupby('algorithm').agg(
+            lambda x: x.tolist())
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        clustering_inferred = np.concatenate(
+            df_aggregate.loc[algorithm].clustering_inferred)
+        clustering_real = np.concatenate(
+            df_aggregate.loc[algorithm].clustering_real)
+        # Scatter
+        axs[0].scatter(
+            clustering_real,
+            clustering_inferred,
+            color=colors_default[alg_i + 1],
+            marker=markers_default[alg_i + 1],
+            label=algorithm_names[algorithm],
+            )
+        # Plot identity line
+        axs[0].plot(
+            [min(clustering_real), max(clustering_real)],
+            [min(clustering_real), max(clustering_real)],
+            color='k',
+            linestyle='--',
+            )
+    # Set axes properties
+    axs[0].set_xlabel(
+        r'$\text{Real clustering}$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(
+        r'$\text{Inferred clustering}$')
+    axs[0].yaxis.set_ticks_position('both')
+    axs[0].legend(loc='lower right')
+    return fig
+
+
+def scatter_clustering_vs_in_degree():
+    # Subplots vertical: algorithms
+    subplots_v = 1
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'clustering_inferred',
+        'clustering_real',
+        'in_degree_real',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    for (alg_i, algorithm) in enumerate(algorithms):
+        # Group by algorithm and concatenate values into lists
+        df_aggregate = df_interest.groupby('algorithm').agg(
+            lambda x: x.tolist())
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        clustering_inferred = np.concatenate(
+            df_aggregate.loc[algorithm].clustering_inferred)
+        clustering_real = np.concatenate(
+            df_aggregate.loc[algorithm].clustering_real)
+        in_degree_real = np.concatenate(
+            df_aggregate.loc[algorithm].in_degree_real)
+        # Scatter
+        axs[0].scatter(
+            in_degree_real,
+            clustering_inferred,
+            color=colors_default[alg_i + 1],
+            marker=markers_default[alg_i + 1],
+            #s=10,
+            label=algorithm_names[algorithm],
+            alpha=0.8
+            )
+        axs[0].scatter(
+            in_degree_real,
+            clustering_real,
+            color='k',
+            marker='x',
+            #s=10,
+            #label='Real',
+            alpha=0.8
+            )
+    axs[0].scatter(
+        in_degree_real[:1],
+        clustering_real[:1],
+        color='k',
+        marker='x',
+        #s=10,
+        label='Real',
+        )
+    # Set axes properties
+    axs[0].set_xlabel(
+        r'$\text{Real in-degree}$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(
+        r'$\text{Clustering}$')
+    axs[0].yaxis.set_ticks_position('both')
+    axs[0].legend(loc='upper right')
+    return fig
+
+
+def boxplot_BA_clustering():
+    # Boxplot of clustering
+    # # Legend: algorithms
+    subplots_v = 1
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'clustering_real',
+        'clustering_inferred',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    # Labels for legend
+    labels = []
+    axs_row = 0
+    for (alg_i, algorithm) in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same algorithm
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_algorithm.columns
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+
+        df_algorithm.clustering_inferred = df_algorithm.clustering_inferred.apply(np.nanmean)
+        clustering_inferred = df_algorithm.clustering_inferred.values.tolist()
+        # Boxplots
+        positions = [1 + alg_i]
+        boxes_width = 0.7
+        axs[axs_row].boxplot(
+            clustering_inferred,
+            positions=positions,
+            widths=boxes_width,
+            showfliers=False,
+            #notch=True,
+            #patch_artist=True,
+            #boxprops=dict(color=colors_default[alg_i + 1]),
+            medianprops=dict(color=colors_default[alg_i + 1])
+            )
+        #labels.append((Patch(color=colors_default[alg_i]), algorithm_names[algorithm]))
+    df_real = pd.DataFrame()
+    df_real.clustering_real = df_interest.clustering_real.apply(np.nanmean)
+    clustering_real = df_real.clustering_real.values.tolist()
+    axs[axs_row].boxplot(
+        clustering_real,
+        positions=[1 + len(algorithms)],
+        widths=boxes_width,
+        showfliers=False,
+        #notch=True,
+        #patch_artist=True,
+        #boxprops=dict(color=colors_default[alg_i]),
+        medianprops=dict(color='k')
+        )
+    #labels.append((Patch(color='k'), 'Real'))
+    axs[axs_row].set_ylabel(r'$\text{Clustering coefficient}$')
+    axs[axs_row].yaxis.set_ticks_position('both')
+    axs[axs_row].set_xticks(list(range(1, 2 + len(algorithms))))
+    axs[axs_row].set_xticklabels([algorithm_names[algorithm] for algorithm in algorithms] + ['Real'])
+    axs[axs_row].set_xlim(left=0.5, right=1.5+len(algorithms))
+    axs[axs_row].set_ylim(bottom=0)
+    # axs[axs_row].legend(*zip(*labels), loc='upper right')
+    return fig
+
+
+def scatter_betweenness_centrality_inferred_vs_real():
+    # Scatter betweenness_centrality inferred vs. real
+    # Subplots vertical: algorithms
+    subplots_v = 1
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'betweenness_centrality_inferred',
+        'betweenness_centrality_real',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    for (alg_i, algorithm) in enumerate(algorithms):
+        # Group by algorithm and concatenate values into lists
+        df_aggregate = df_interest.groupby('algorithm').agg(
+            lambda x: x.tolist())
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        betweenness_centrality_inferred = np.concatenate(
+            df_aggregate.loc[algorithm].betweenness_centrality_inferred)
+        betweenness_centrality_real = np.concatenate(
+            df_aggregate.loc[algorithm].betweenness_centrality_real)
+        # Scatter
+        axs[0].scatter(
+            betweenness_centrality_real,
+            betweenness_centrality_inferred,
+            color=colors_default[alg_i + 1],
+            marker=markers_default[alg_i + 1],
+            label=algorithm_names[algorithm],
+            )
+        # Plot identity line
+        axs[0].plot(
+            [min(betweenness_centrality_real), max(betweenness_centrality_real)],
+            [min(betweenness_centrality_real), max(betweenness_centrality_real)],
+            color='k',
+            linestyle='--',
+            )
+    # Set axes properties
+    axs[0].set_xlabel(
+        r'$\text{Real centrality}$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(
+        r'$\text{Inferred centrality}$')
+    axs[0].yaxis.set_ticks_position('both')
+    axs[0].legend(loc='upper left')
+    return fig
+
+
+def scatter_eigenvector_centrality_inferred_vs_real():
+    # Scatter eigenvector_centrality inferred vs. real
+    # Subplots vertical: algorithms
+    subplots_v = len(algorithms)
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'eigenvector_centrality_inferred',
+        'eigenvector_centrality_real',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    for (axs_col, algorithm) in enumerate(algorithms):
+        # Group by algorithm and concatenate values into lists
+        df_aggregate = df_interest.groupby('algorithm').agg(
+            lambda x: x.tolist())
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        eigenvector_centrality_inferred = np.concatenate(
+            df_aggregate.loc[algorithm].eigenvector_centrality_inferred)
+        eigenvector_centrality_real = np.concatenate(
+            df_aggregate.loc[algorithm].eigenvector_centrality_real)
+        # Scatter
+        axs[axs_col].scatter(
+            eigenvector_centrality_real,
+            eigenvector_centrality_inferred,
+            color=colors_default[axs_col + 1],
+            #marker=markers_default[axs_col + 1],
+            )
+        # Plot identity line
+        axs[axs_col].plot(
+            [min(eigenvector_centrality_real), max(eigenvector_centrality_real)],
+            [min(eigenvector_centrality_real), max(eigenvector_centrality_real)],
+            color='k',
+            linestyle='--',
+            )
+        # Compute mean squared error and Person corr
+        mse = np.square(np.subtract(eigenvector_centrality_inferred, eigenvector_centrality_real)).mean()
+        rho=np.corrcoef(np.array([eigenvector_centrality_real,eigenvector_centrality_inferred]))[0,1]
+        # Set subplot title
+        # axs[axs_col].set_title('{0}, MSE= {1:.3f}'.format(algorithm_names[algorithm], mse))
+        axs[axs_col].set_title('{0}'.format(algorithm_names[algorithm], mse))
+        # Set axes properties
+        axs[axs_col].set_xlabel(
+            r'$\text{Real centrality}$', horizontalalignment='right', x=1.0)
+        axs[axs_col].set_ylabel(
+            r'$\text{Inferred centrality}$')
+        # axs[axs_row, axs_col].set_xscale('log')
+        axs[axs_col].yaxis.set_ticks_position('both')
+        #axs[axs_row, axs_col].set_xlim(left=0)
+        #axs[axs_row, axs_col].set_ylim(bottom=0)
+    return fig
+
+
 def scatter_in_degree_inferred_vs_real():
     # Scatter in-degree inferred vs. real
     # Subplots vertical: algorithms
-    subplots_v = len(algorithms)
+    subplots_v = 1
     subplots_h = 1
     fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
     # Select data of interest
@@ -5438,14 +5542,10 @@ def scatter_in_degree_inferred_vs_real():
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
     df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
     parameters_to_average = {'repetition_i'}
-    for (axs_col, algorithm) in enumerate(algorithms):
+    for (alg_i, algorithm) in enumerate(algorithms):
         # Group by algorithm and concatenate values into lists
         df_aggregate = df_interest.groupby('algorithm').agg(
             lambda x: x.tolist())
@@ -5457,91 +5557,27 @@ def scatter_in_degree_inferred_vs_real():
         in_degree_real = np.concatenate(
             df_aggregate.loc[algorithm].in_degree_real)
         # Scatter
-        axs[axs_col].scatter(
+        axs[0].scatter(
             in_degree_real,
             in_degree_inferred,
+            color=colors_default[alg_i + 1],
+            marker=markers_default[alg_i + 1],
+            label=algorithm_names[algorithm],
             )
         # Plot identity line
-        axs[axs_col].plot(
+        axs[0].plot(
             [min(in_degree_real), max(in_degree_real)],
             [min(in_degree_real), max(in_degree_real)],
-            'g--')
-        # Compute mean squared error and Person corr
-        mse = np.square(np.subtract(in_degree_inferred, in_degree_real)).mean()
-        rho=np.corrcoef(np.array([in_degree_real,in_degree_inferred]))[0,1]
-        # Set subplot title
-        axs[axs_col].set_title('{0}, MSE= {1}'.format(algorithm_names[algorithm], mse))
-        # Set axes properties
-        axs[axs_col].set_xlabel(
-            r'$\text{Real in-degree}$', horizontalalignment='right', x=1.0)
-        axs[axs_col].set_ylabel(
-            r'$\text{Inferred in-degree}$')
-        # axs[axs_row, axs_col].set_xscale('log')
-        axs[axs_col].yaxis.set_ticks_position('both')
-        #axs[axs_row, axs_col].set_xlim(left=0)
-        #axs[axs_row, axs_col].set_ylim(bottom=0)
-    return fig
-
-
-def scatter_out_degree_inferred_vs_real():
-    # Scatter out-degree inferred vs. real
-    # Subplots vertical: algorithms
-    subplots_v = len(algorithms)
-    subplots_h = 1
-    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
-    # Select data of interest
-    df_interest = df[parameters_explored + [
-        'out_degree_inferred',
-        'out_degree_real',
-        ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
-        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
-    # Choose which of the explored parameters to collect data over
-    parameters_to_average = {'repetition_i'}
-
-    for (axs_col, algorithm) in enumerate(algorithms):
-        
-        # Group by algorithm and concatenate values into lists
-        df_aggregate = df_interest.groupby('algorithm').agg(
-            lambda x: x.tolist())
-        # Ensure that only the desired parameters are aggregated or averaged
-        df_keys_remaining = df_aggregate.columns.get_level_values(0)
-        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
-        
-        out_degree_inferred = np.concatenate(
-            df_aggregate.loc[algorithm].out_degree_inferred)
-        out_degree_real = np.concatenate(
-            df_aggregate.loc[algorithm].out_degree_real)
-        # Scatter
-        axs[axs_col].scatter(
-            out_degree_real,
-            out_degree_inferred,
+            color='k',
+            linestyle='--',
             )
-        # Plot identity line
-        axs[axs_col].plot(
-            [min(out_degree_real), max(out_degree_real)],
-            [min(out_degree_real), max(out_degree_real)],
-            'g--')
-        # Compute MSE and Person corr
-        rho=np.corrcoef(np.array([out_degree_real,out_degree_inferred]))[0,1]
-        mse = np.square(np.subtract(out_degree_inferred, out_degree_real)).mean()
-        # Set subplot title
-        axs[axs_col].set_title('{0}, MSE= {1}'.format(algorithm_names[algorithm], mse))
-        # Set axes properties
-        axs[axs_col].set_xlabel(
-            r'$\text{Real out-degree}$', horizontalalignment='right', x=1.0)
-        axs[axs_col].set_ylabel(
-            r'$\text{Inferred out-degree}$')
-        # axs[axs_row, axs_col].set_xscale('log')
-        axs[axs_col].yaxis.set_ticks_position('both')
-        #axs[axs_row, axs_col].set_xlim(left=0)
-        #axs[axs_row, axs_col].set_ylim(bottom=0)
+    # Set axes properties
+    axs[0].set_xlabel(
+        r'$\text{Real in-degree}$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(
+        r'$\text{Inferred in-degree}$')
+    axs[0].yaxis.set_ticks_position('both')
+    axs[0].legend(loc='upper right')
     return fig
 
 
@@ -5559,10 +5595,6 @@ def histogram_in_degree_inferred_vs_real():
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
     df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
     parameters_to_average = {'repetition_i'}
@@ -5599,83 +5631,24 @@ def histogram_in_degree_inferred_vs_real():
     return fig
 
 
-def histogram_out_degree_inferred_vs_real():
-    # Plot out_degree_real and out_degree_inferred histograms (only T_interest)
-    # Subplots vertical: algorithms
-    subplots_v = len(algorithms)
-    subplots_h = 1
-    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
-    # Select data of interest
-    df_interest = df[parameters_explored + [
-    'out_degree_inferred',
-    'out_degree_real',
-    ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
-        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
-    # Choose which of the explored parameters to collect data over
-    parameters_to_average = {'repetition_i'}
-
-    for (axs_col, algorithm) in enumerate(algorithms):
-        # Group by algorithm and concatenate values into lists
-        df_aggregate = df_interest.groupby('algorithm').agg(
-            lambda x: x.tolist())
-        # Ensure that only the desired parameters are aggregated or averaged
-        df_keys_remaining = df_aggregate.columns.get_level_values(0)
-        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
-        out_degree_inferred = np.concatenate(
-            df_aggregate.loc[algorithm].out_degree_inferred)
-        out_degree_real = np.concatenate(
-            df_aggregate.loc[algorithm].out_degree_real)
-        # Real histogram
-        axs[axs_col].hist(
-            out_degree_real,
-            density=True,
-            label='Real')
-        # Inferred histogram
-        axs[axs_col].hist(
-            out_degree_inferred,
-            density=True,
-            label='Inferred')
-        # Set subplot title
-        axs[axs_col].set_title('{0}'.format(algorithm_names[algorithm]))
-        # Set axes properties
-        axs[axs_col].set_xlabel(r'$\text{Out-degree}$', horizontalalignment='right', x=1.0)
-        axs[axs_col].yaxis.set_ticks_position('both')
-        #axs[axs_col].set_ylim(bottom=0)
-        # Add legend
-        axs[axs_col].legend()
-
-    return fig
-
-
 def loglog_distributions_in_degree_inferred_vs_real():
     # Plot in_degree_real and in_degree_inferred distributions (only T_interest)
     # Subplots vertical: algorithms
-    subplots_v = len(algorithms)
+    subplots_v = 1
     subplots_h = 1
     fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
     # Select data of interest
     df_interest = df[parameters_explored + [
-    'in_degree_inferred',
-    'in_degree_real',
+        'in_degree_real',
+        'in_degree_inferred',
     ]]
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
     df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
     parameters_to_average = {'repetition_i'}
-    for (axs_col, algorithm) in enumerate(algorithms):
+    for (alg_i, algorithm) in enumerate(algorithms):
         # Group by algorithm and concatenate values into lists
         df_aggregate = df_interest.groupby('algorithm').agg(
             lambda x: x.tolist())
@@ -5684,166 +5657,62 @@ def loglog_distributions_in_degree_inferred_vs_real():
         check_remaining_dimensions(df_keys_remaining, parameters_to_average)
         in_degree_inferred = np.concatenate(
             df_aggregate.loc[algorithm].in_degree_inferred)
-        in_degree_real = np.concatenate(
-            df_aggregate.loc[algorithm].in_degree_real)
         
-        # degree_counts_inferred = Counter(in_degree_inferred)
-        # x_inferred, y_inferred = zip(*degree_counts_inferred.items())
-        # degree_counts_real = Counter(in_degree_real)
-        # x_real, y_real = zip(*degree_counts_real.items())
-        
-        bins_inferred = np.arange(np.min(in_degree_inferred), np.max(in_degree_inferred) + 2, 1) - 0.5
-        x_inferred = bins_inferred[:-1] + 0.5
-        y_inferred, bins = np.histogram(in_degree_inferred, bins=bins_inferred, density=False)
-        y_inferred = y_inferred / len(in_degree_inferred)
-
-        bins_real = np.arange(np.min(in_degree_real), np.max(in_degree_real) + 2, 1) - 0.5
-        x_real = bins_real[:-1] + 0.5
-        y_real, bins = np.histogram(in_degree_real, bins=bins_real, density=False)
-        y_real = y_real / len(in_degree_real)
-
         def power_law(x, coeff, exponent):
             return coeff * x ** exponent
 
-        popt_inferred, pcov_inferred = curve_fit(power_law, x_inferred[1:-1], y_inferred[1:-1])
-        popt_real, pcov_real = curve_fit(power_law, x_real[1:-1], y_real[1:-1])
+        
+        xmin=4
 
-        x_min = min(x_real.min(), x_inferred.min())
-        x_max = max(x_real.max(), x_inferred.max())
-        x = np.linspace(x_min, x_max)
-
-        # Real
-        axs[axs_col].scatter(x_real, y_real, marker='.', label='Real')
-        axs[axs_col].plot(
-            x,
-            power_law(x, *popt_real),
-            '--',
-            color='tab:blue',
-            label='{0} k{1}'.format(*popt_real),
-            )
         # Inferred
-        axs[axs_col].scatter(x_inferred, y_inferred, marker='.', label='Inferred')
-        axs[axs_col].plot(
-            x,
-            power_law(x, *popt_inferred),
-            '--',
-            color='tab:orange',
-            label='{0} k{1}'.format(*popt_inferred),
+        results_inferred = powerlaw.Fit(in_degree_inferred , xmin=xmin)
+        R, p = results_inferred.distribution_compare('power_law', 'lognormal')
+        print(R, p)
+
+        results_inferred.plot_pdf(
+            color=colors_default[alg_i + 1],
+            marker=markers_default[alg_i + 1],
+            linestyle='',
+            label=algorithm_names[algorithm] + r' ($\beta$={0:.1f})'.format(results_inferred.power_law.alpha),
+            ax=axs[0])
+        results_inferred.power_law.plot_pdf(
+            color=colors_default[alg_i + 1],
+            linestyle='--',
+            ax=axs[0]
             )
+
+    # Real
+    in_degree_real = np.concatenate(df_interest.in_degree_real)
+    results_real = powerlaw.Fit(in_degree_real , xmin=xmin)
+    R, p = results_real.distribution_compare('power_law', 'lognormal')
+    print(R, p)
+
+    results_real.plot_pdf(
+        color='k',
+        marker='x',
+        linestyle='',
+        label=r'Real ($\beta$={0:.1f})'.format(results_real.power_law.alpha),
+        ax=axs[0])
+    results_real.power_law.plot_pdf(
+        color='k',
+        linestyle='--',
+        ax=axs[0]
+        )
         
-        # # k^-3
-        # axs[axs_col].plot(
-        #     x,
-        #     x ** (-3),
-        #     '--',
-        #     color='tab:gray',
-        #     label=r'$k^{-3}$',
-        #     )
+    # Theoretical
+    # x = np.linspace(xmin, max(in_degree_inferred))
+    # y = power_law(x, 32, -3)
+    # axs[0].plot(x, y, linestyle='--', color='k', label='Theoretical')
 
-        # Set subplot title
-        axs[axs_col].set_title('{0}'.format(algorithm_names[algorithm]))
-        # Set axes properties
-        axs[axs_col].set_xlabel(r'$\text{In-degree}$', horizontalalignment='right', x=1.0)
-        axs[axs_col].set_ylabel(r'$\text{Frequency}$')
-        axs[axs_col].yaxis.set_ticks_position('both')
-        #axs[axs_col].set_ylim(bottom=0)
-        axs[axs_col].set_xscale('log')
-        axs[axs_col].set_yscale('log')
-        # Add legend
-        axs[axs_col].legend()
-
-    return fig
-
-
-def loglog_distributions_out_degree_inferred_vs_real():
-    # Plot out_degree_real and out_degree_inferred distributions (only T_interest)
-    # Subplots vertical: algorithms
-    subplots_v = len(algorithms)
-    subplots_h = 1
-    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
-    # Select data of interest
-    df_interest = df[parameters_explored + [
-    'out_degree_inferred',
-    'out_degree_real',
-    ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
-        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
-    # Choose which of the explored parameters to collect data over
-    parameters_to_average = {'repetition_i'}
-    for (axs_col, algorithm) in enumerate(algorithms):
-        # Group by algorithm and concatenate values into lists
-        df_aggregate = df_interest.groupby('algorithm').agg(
-            lambda x: x.tolist())
-        # Ensure that only the desired parameters are aggregated or averaged
-        df_keys_remaining = df_aggregate.columns.get_level_values(0)
-        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
-        out_degree_inferred = np.concatenate(
-            df_aggregate.loc[algorithm].out_degree_inferred)
-        out_degree_real = np.concatenate(
-            df_aggregate.loc[algorithm].out_degree_real)
-        
-        # degree_counts_inferred = Counter(out_degree_inferred)                                                                                                 
-        # x_inferred, y_inferred = zip(*degree_counts_inferred.items())   
-        # degree_counts_real = Counter(out_degree_real)                                                                                                 
-        # x_real, y_real = zip(*degree_counts_real.items())                                                      
-        
-        bins_inferred = np.arange(np.min(out_degree_inferred), np.max(out_degree_inferred) + 2, 1) - 0.5
-        x_inferred = bins_inferred[:-1] + 0.5
-        y_inferred, bins = np.histogram(out_degree_inferred, bins=bins_inferred, density=False)
-        y_inferred = y_inferred / len(out_degree_inferred)
-
-        bins_real = np.arange(np.min(out_degree_real), np.max(out_degree_real) + 2, 1) - 0.5
-        x_real = bins_real[:-1] + 0.5
-        y_real, bins = np.histogram(out_degree_real, bins=bins_real, density=False)
-        y_real = y_real / len(out_degree_real)
-
-        def power_law(x, coeff, exponent):
-            return coeff * x ** exponent
-
-        popt_inferred, pcov_inferred = curve_fit(power_law, x_inferred[1:-1], y_inferred[1:-1])
-        popt_real, pcov_real = curve_fit(power_law, x_real[1:-1], y_real[1:-1])
-
-        x_min = min(x_real.min(), x_inferred.min())
-        x_max = max(x_real.max(), x_inferred.max())
-        x = np.linspace(x_min, x_max)
-
-        # Real
-        axs[axs_col].scatter(x_real, y_real, marker='.', label='Real')
-        axs[axs_col].plot(
-            x,
-            power_law(x, *popt_real),
-            '--',
-            color='tab:blue',
-            label='{0} k{1}'.format(*popt_real),
-            )
-        # Inferred
-        axs[axs_col].scatter(x_inferred, y_inferred, marker='.', label='Inferred')
-        axs[axs_col].plot(
-            x,
-            power_law(x, *popt_inferred),
-            '--',
-            color='tab:orange',
-            label='{0} k{1}'.format(*popt_inferred),
-            )
-        
-        
-        # Set subplot title
-        axs[axs_col].set_title('{0}'.format(algorithm_names[algorithm]))
-        # Set axes properties
-        axs[axs_col].set_xlabel(r'$\text{Out-degree}$', horizontalalignment='right', x=1.0)
-        axs[axs_col].set_ylabel(r'$\text{Frequency}$')
-        axs[axs_col].yaxis.set_ticks_position('both')
-        #axs[axs_col].set_ylim(bottom=0)
-        axs[axs_col].set_xscale('log')
-        axs[axs_col].set_yscale('log')
-        # Add legend
-        axs[axs_col].legend()
+    # Set axes properties
+    axs[0].set_xlabel(r'$\text{In-degree}$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(r'$\text{Frequency}$')
+    axs[0].yaxis.set_ticks_position('both')
+    #axs[0].set_ylim(bottom=0)
+    axs[0].set_xscale('log')
+    axs[0].set_yscale('log')
+    # Add legend
+    axs[0].legend()
 
     return fig
 
@@ -5851,7 +5720,7 @@ def loglog_distributions_out_degree_inferred_vs_real():
 def scatter_in_degree_assortativity_inferred_vs_real():
     # Scatter in_degree_assortativity_real vs. in_degree_assortativity_inferred
     # Subplots vertical: algorithms
-    subplots_v = len(algorithms)
+    subplots_v = 1
     subplots_h = 1
     fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
     # Select data of interest
@@ -5862,14 +5731,10 @@ def scatter_in_degree_assortativity_inferred_vs_real():
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
     df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
     parameters_to_average = {'repetition_i'}
-    for (axs_col, algorithm) in enumerate(algorithms):
+    for (alg_i, algorithm) in enumerate(algorithms):
         # Group by algorithm and concatenate values into lists
         df_aggregate = df_interest.groupby('algorithm').agg(
             lambda x: x.tolist())
@@ -5882,93 +5747,27 @@ def scatter_in_degree_assortativity_inferred_vs_real():
         in_degree_assortativity_real = (
             df_aggregate.loc[algorithm].in_degree_assortativity_real)
         # Scatter
-        axs[axs_col].scatter(
+        axs[0].scatter(
             in_degree_assortativity_real,
             in_degree_assortativity_inferred,
+            color=colors_default[alg_i + 1],
+            marker=markers_default[alg_i + 1],
+            label=algorithm_names[algorithm],
             )
-        # Plot identity line
-        axs[axs_col].plot(
-            [min(in_degree_assortativity_real), max(in_degree_assortativity_real)],
-            [min(in_degree_assortativity_real), max(in_degree_assortativity_real)],
-            'g--')
-        # Compute MSE and Person corr
-        rho=np.corrcoef(
-            np.array([in_degree_assortativity_real, in_degree_assortativity_inferred]))[0,1]
-        mse = np.square(
-            np.subtract(in_degree_assortativity_inferred, in_degree_assortativity_real)).mean()
-        # Set subplot title
-        axs[axs_col].set_title('{0}, MSE= {1}'.format(algorithm_names[algorithm], mse))
-        # Set axes properties
-        axs[axs_col].set_xlabel(
-            r'$\text{Real in-degree assortativity}$', horizontalalignment='right', x=1.0)
-        axs[axs_col].set_ylabel(
-            r'$\text{Inferred in-degree assortativity}$')
-        # axs[axs_row, axs_col].set_xscale('log')
-        axs[axs_col].yaxis.set_ticks_position('both')
-        #axs[axs_row, axs_col].set_xlim(left=0)
-        #axs[axs_row, axs_col].set_ylim(bottom=0)
-    return fig
-
-
-def scatter_out_degree_assortativity_inferred_vs_real():
-    # Scatter out_degree_assortativity_real vs. out_degree_assortativity_inferred
-    # Subplots vertical: algorithms
-    subplots_v = len(algorithms)
-    subplots_h = 1
-    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
-    # Select data of interest
-    df_interest = df[parameters_explored + [
-        'out_degree_assortativity_inferred',
-        'out_degree_assortativity_real',
-        ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
-        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
-    # Choose which of the explored parameters to collect data over
-    parameters_to_average = {'repetition_i'}
-    for (axs_col, algorithm) in enumerate(algorithms):
-        # Group by algorithm and concatenate values into lists
-        df_aggregate = df_interest.groupby('algorithm').agg(
-            lambda x: x.tolist())
-        # Ensure that only the desired parameters are aggregated or averaged
-        df_keys_remaining = df_aggregate.columns.get_level_values(0)
-        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
-        
-        out_degree_assortativity_inferred = (
-            df_aggregate.loc[algorithm].out_degree_assortativity_inferred)
-        out_degree_assortativity_real = (
-            df_aggregate.loc[algorithm].out_degree_assortativity_real)
-        # Scatter
-        axs[axs_col].scatter(
-            out_degree_assortativity_real,
-            out_degree_assortativity_inferred,
-            )
-        # Plot identity line
-        axs[axs_col].plot(
-            [min(out_degree_assortativity_real), max(out_degree_assortativity_real)],
-            [min(out_degree_assortativity_real), max(out_degree_assortativity_real)],
-            'g--')
-        # Compute MSE and Person corr
-        rho=np.corrcoef(
-            np.array([out_degree_assortativity_real, out_degree_assortativity_inferred]))[0,1]
-        mse = np.square(
-            np.subtract(out_degree_assortativity_inferred, out_degree_assortativity_real)).mean()
-        # Set subplot title
-        axs[axs_col].set_title('{0}, MSE= {1}'.format(algorithm_names[algorithm], mse))
-        # Set axes properties
-        axs[axs_col].set_xlabel(
-            r'$\text{Real out-degree assortativity}$', horizontalalignment='right', x=1.0)
-        axs[axs_col].set_ylabel(
-            r'$\text{Inferred out-degree assortativity}$')
-        # axs[axs_row, axs_col].set_xscale('log')
-        axs[axs_col].yaxis.set_ticks_position('both')
-        #axs[axs_row, axs_col].set_xlim(left=0)
-        #axs[axs_row, axs_col].set_ylim(bottom=0)
+    # Plot identity line
+    axs[0].plot(
+        [min(df_interest.in_degree_assortativity_real), max(df_interest.in_degree_assortativity_real)],
+        [min(df_interest.in_degree_assortativity_real), max(df_interest.in_degree_assortativity_real)],
+        color='k',
+        linestyle='--',
+        )
+    # Set axes properties
+    axs[0].set_xlabel(
+        r'$\text{Real in-degree assortativity}$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(
+        r'$\text{Inferred assortativity}$')
+    axs[0].yaxis.set_ticks_position('both')
+    axs[0].legend(loc='lower right')
     return fig
 
 
@@ -5985,10 +5784,6 @@ def histogram_reciprocity_inferred_vs_real():
     ]]
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -6041,10 +5836,6 @@ def histogram_overall_reciprocity_inferred_vs_real():
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
     df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
     parameters_to_average = {'repetition_i'}
@@ -6082,23 +5873,19 @@ def histogram_overall_reciprocity_inferred_vs_real():
     return fig
 
 
-def plot_rich_club_in_degrees_inferred_vs_real():
+def plot_rich_club_in_degrees_inferred_vs_real(max_degree=25):
     # Plot rich_club_in_degrees_inferred vs rich_club_in_degrees_real
     # Subplots vertical: algorithms
-    subplots_v = len(algorithms)
+    subplots_v = 1
     subplots_h = 1
     fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
     # Select data of interest
     df_interest = df[parameters_explored + [
-    'rich_club_in_degrees_inferred',
-    'rich_club_in_degrees_real',
+        'rich_club_in_degrees_inferred',
+        'rich_club_in_degrees_real',
     ]]
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -6121,97 +5908,37 @@ def plot_rich_club_in_degrees_inferred_vs_real():
         rich_club_in_degrees_inferred = np.nanmean(
             np.array(df_aggregate.loc[algorithm].rich_club_in_degrees_inferred),
             axis=0)
-        rich_club_in_degrees_real = np.nanmean(
-            np.array(df_aggregate.loc[algorithm].rich_club_in_degrees_real),
-            axis=0)
-        max_degree = 30
-        # Real
-        axs[axs_col].plot(
-            range(max_degree),
-            rich_club_in_degrees_real[:max_degree],
-            label='Real')
+
         # Inferred
-        axs[axs_col].plot(
+        axs[0].plot(
             range(max_degree),
             rich_club_in_degrees_inferred[:max_degree],
-            label='Inferred')
-        # Set subplot title
-        axs[axs_col].set_title('{0}'.format(algorithm_names[algorithm]))
-        # Set axes properties
-        axs[axs_col].set_xlabel(r'$\text{In-degree}$', horizontalalignment='right', x=1.0)
-        axs[axs_col].set_ylabel(r'$\text{Rich-club coefficient}$')
-        axs[axs_col].yaxis.set_ticks_position('both')
-        #axs[axs_col].set_ylim(bottom=0)
-        # Add legend
-        axs[axs_col].legend()
+            color=colors_default[axs_col + 1],
+            marker=markers_default[axs_col + 1],
+            label=algorithm_names[algorithm])
+    # Real
+    rich_club_in_degrees_real = np.nanmean(
+        np.row_stack(df_interest.rich_club_in_degrees_real),
+        axis=0)
+    axs[0].plot(
+        range(max_degree),
+        rich_club_in_degrees_real[:max_degree],
+        color='k',
+        marker='x',
+        linestyle='',
+        label='Real')
+    # Set subplot title
+    #axs[0].set_title('{0}'.format(algorithm_names[algorithm]))
+    # Set axes properties
+    axs[0].set_xlabel(r'$\text{In-degree}$', horizontalalignment='right', x=1.0)
+    axs[0].set_ylabel(r'$\text{Rich-club coefficient}$')
+    axs[0].yaxis.set_ticks_position('both')
+    #axs[0].set_xlim(right=max_degree+1)
+    # Add legend
+    axs[0].legend()
 
     return fig
 
-
-def plot_rich_club_out_degrees_inferred_vs_real():
-    # Plot rich_club_out_degrees_inferred vs rich_club_out_degrees_real
-    # Subplots vertical: algorithms
-    subplots_v = len(algorithms)
-    subplots_h = 1
-    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
-    # Select data of interest
-    df_interest = df[parameters_explored + [
-    'rich_club_out_degrees_inferred',
-    'rich_club_out_degrees_real',
-    ]]
-    if 'algorithm' not in parameters_explored:
-        df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
-        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
-    # Choose which of the explored parameters to collect data over
-    parameters_to_average = {'repetition_i'}
-
-    # Pad with NaN vaues up to length 500
-    def pad_with_nan(arr):
-        return np.pad(arr.astype(float), (0,500-len(arr)), 'constant', constant_values=(np.nan,))
-    df_interest['rich_club_out_degrees_real'] = df_interest['rich_club_out_degrees_real'].apply(lambda x: pad_with_nan(x))
-    df_interest['rich_club_out_degrees_inferred'] = df_interest['rich_club_out_degrees_inferred'].apply(lambda x: pad_with_nan(x))
-
-    for (axs_col, algorithm) in enumerate(algorithms):
-        # Group by algorithm and concatenate values into lists
-        df_aggregate = df_interest.groupby('algorithm').agg(
-            lambda x: x.tolist())
-        # Ensure that only the desired parameters are aggregated or averaged
-        df_keys_remaining = df_aggregate.columns.get_level_values(0)
-        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
-        
-        rich_club_out_degrees_inferred = np.nanmean(
-            np.array(df_aggregate.loc[algorithm].rich_club_out_degrees_inferred),
-            axis=0)
-        rich_club_out_degrees_real = np.nanmean(
-            np.array(df_aggregate.loc[algorithm].rich_club_out_degrees_real),
-            axis=0)
-        max_degree = 30
-        # Real
-        axs[axs_col].plot(
-            range(max_degree),
-            rich_club_out_degrees_real[:max_degree],
-            label='Real')
-        # Inferred
-        axs[axs_col].plot(
-            range(max_degree),
-            rich_club_out_degrees_inferred[:max_degree],
-            label='Inferred')
-        # Set subplot title
-        axs[axs_col].set_title('{0}'.format(algorithm_names[algorithm]))
-        # Set axes properties
-        axs[axs_col].set_xlabel(r'$\text{Out-degree}$', horizontalalignment='right', x=1.0)
-        axs[axs_col].set_ylabel(r'$\text{Rich-club coefficient}$')
-        axs[axs_col].yaxis.set_ticks_position('both')
-        #axs[axs_col].set_ylim(bottom=0)
-        # Add legend
-        axs[axs_col].legend()
-
-    return fig
 
 # -------------------------------------------------------------------------
 # endregion
@@ -6223,8 +5950,8 @@ def plot_rich_club_out_degrees_inferred_vs_real():
 # region Stochastic Block Model
 # -------------------------------------------------------------------------
 
-def violin_plot_SBM_precision_vs_links_out():
-    # Violin plot of precision within and between groups vs. links_out
+def plot_SBM_precision_vs_links_out():
+    # Precision within and between groups vs. links_out
     # Subplots vertical: algorithms
     subplots_v = len(algorithms)
     subplots_h = 1
@@ -6259,42 +5986,66 @@ def violin_plot_SBM_precision_vs_links_out():
         precision_between_groups = [
             df_aggregate.loc[links_out].precision_between_groups
             for links_out in links_out_range]
-        # Violin plot of omnibus TE vs links_out
-        violin_within = axs[axs_row].violinplot(
-            precision_within_groups,
-            positions=links_out_range,
-            widths=0.4,#WS_p_range/2,
-            showmeans=False,
-            showextrema=False,
-            showmedians=False,
-            #points=100,
-            #bw_method=
-            )
-        violin_between = axs[axs_row].violinplot(
-            precision_between_groups,
-            positions=links_out_range,
-            widths=0.4,#WS_p_range/2,
-            showmeans=False,
-            showextrema=False,
-            showmedians=False,
-            #points=100,
-            #bw_method=
-            )
-        # Join mean values
         mean_vals_within = [np.nanmean(df_aggregate.loc[links_out].precision_within_groups) for links_out in links_out_range]
+        mean_vals_between = [np.nanmean(df_aggregate.loc[links_out].precision_between_groups) for links_out in links_out_range]
+        # mean vals
         axs[axs_row].plot(
             links_out_range,
             mean_vals_within,
-            '-o',
             color='tab:blue',
             label='Within groups')
-        mean_vals_between = [np.nanmean(df_aggregate.loc[links_out].precision_between_groups) for links_out in links_out_range]
         axs[axs_row].plot(
             links_out_range,
             mean_vals_between,
-            '-o',
             color='tab:orange',
             label='Between groups')
+        # scatter
+        axs[axs_row].scatter(
+            df_algorithm['links_out'].values.astype(float).tolist(),
+            df_algorithm['precision_within_groups'].values,
+            color='tab:blue',
+            alpha=0.3)
+        axs[axs_row].scatter(
+            df_algorithm['links_out'].values.astype(float).tolist(),
+            df_algorithm['precision_between_groups'].values,
+            color='tab:orange',
+            alpha=0.3)
+        # # Violin plot of omnibus TE vs links_out
+        # violin_within = axs[axs_row].violinplot(
+        #     precision_within_groups,
+        #     positions=links_out_range,
+        #     widths=0.4,#WS_p_range/2,
+        #     showmeans=False,
+        #     showextrema=False,
+        #     showmedians=False,
+        #     #points=100,
+        #     #bw_method=
+        #     )
+        # violin_between = axs[axs_row].violinplot(
+        #     precision_between_groups,
+        #     positions=links_out_range,
+        #     widths=0.4,#WS_p_range/2,
+        #     showmeans=False,
+        #     showextrema=False,
+        #     showmedians=False,
+        #     #points=100,
+        #     #bw_method=
+        #     )
+        # # Join mean values
+        # mean_vals_within = [np.nanmean(df_aggregate.loc[links_out].precision_within_groups) for links_out in links_out_range]
+        # axs[axs_row].plot(
+        #     links_out_range,
+        #     mean_vals_within,
+        #     '-o',
+        #     color='tab:blue',
+        #     label='Within groups')
+        # mean_vals_between = [np.nanmean(df_aggregate.loc[links_out].precision_between_groups) for links_out in links_out_range]
+        # axs[axs_row].plot(
+        #     links_out_range,
+        #     mean_vals_between,
+        #     '-o',
+        #     color='tab:orange',
+        #     label='Between groups')
         # Set axes properties
         axs[axs_row].set_xlabel(
             r'$\text{Links between groups}$', horizontalalignment='right', x=1.0)
@@ -6306,8 +6057,8 @@ def violin_plot_SBM_precision_vs_links_out():
     return fig
 
 
-def violin_plot_SBM_recall_vs_links_out():
-    # Violin plot of recall within and between groups vs. links_out
+def plot_SBM_recall_vs_links_out():
+    # Recall within and between groups vs. links_out
     # Subplots vertical: algorithms
     subplots_v = len(algorithms)
     subplots_h = 1
@@ -6342,42 +6093,66 @@ def violin_plot_SBM_recall_vs_links_out():
         recall_between_groups = [
             df_aggregate.loc[links_out].recall_between_groups
             for links_out in links_out_range]
-        # Violin plot of omnibus TE vs links_out
-        violin_within = axs[axs_row].violinplot(
-            recall_within_groups,
-            positions=links_out_range,
-            widths=0.4,#WS_p_range/2,
-            showmeans=False,
-            showextrema=False,
-            showmedians=False,
-            #points=100,
-            #bw_method=
-            )
-        violin_between = axs[axs_row].violinplot(
-            recall_between_groups,
-            positions=links_out_range,
-            widths=0.4,#WS_p_range/2,
-            showmeans=False,
-            showextrema=False,
-            showmedians=False,
-            #points=100,
-            #bw_method=
-            )
-        # Join mean values
         mean_vals_within = [np.nanmean(df_aggregate.loc[links_out].recall_within_groups) for links_out in links_out_range]
+        mean_vals_between = [np.nanmean(df_aggregate.loc[links_out].recall_between_groups) for links_out in links_out_range]
+        # mean vals
         axs[axs_row].plot(
             links_out_range,
             mean_vals_within,
-            '-o',
             color='tab:blue',
             label='Within groups')
-        mean_vals_between = [np.nanmean(df_aggregate.loc[links_out].recall_between_groups) for links_out in links_out_range]
         axs[axs_row].plot(
             links_out_range,
             mean_vals_between,
-            '-o',
             color='tab:orange',
             label='Between groups')
+        # scatter
+        axs[axs_row].scatter(
+            df_algorithm['links_out'].values.astype(float).tolist(),
+            df_algorithm['recall_within_groups'].values,
+            color='tab:blue',
+            alpha=0.3)
+        axs[axs_row].scatter(
+            df_algorithm['links_out'].values.astype(float).tolist(),
+            df_algorithm['recall_between_groups'].values,
+            color='tab:orange',
+            alpha=0.3)
+        # # Violin plot of omnibus TE vs links_out
+        # violin_within = axs[axs_row].violinplot(
+        #     recall_within_groups,
+        #     positions=links_out_range,
+        #     widths=0.4,#WS_p_range/2,
+        #     showmeans=False,
+        #     showextrema=False,
+        #     showmedians=False,
+        #     #points=100,
+        #     #bw_method=
+        #     )
+        # violin_between = axs[axs_row].violinplot(
+        #     recall_between_groups,
+        #     positions=links_out_range,
+        #     widths=0.4,#WS_p_range/2,
+        #     showmeans=False,
+        #     showextrema=False,
+        #     showmedians=False,
+        #     #points=100,
+        #     #bw_method=
+        #     )
+        # # Join mean values
+        # mean_vals_within = [np.nanmean(df_aggregate.loc[links_out].recall_within_groups) for links_out in links_out_range]
+        # axs[axs_row].plot(
+        #     links_out_range,
+        #     mean_vals_within,
+        #     '-o',
+        #     color='tab:blue',
+        #     label='Within groups')
+        # mean_vals_between = [np.nanmean(df_aggregate.loc[links_out].recall_between_groups) for links_out in links_out_range]
+        # axs[axs_row].plot(
+        #     links_out_range,
+        #     mean_vals_between,
+        #     '-o',
+        #     color='tab:orange',
+        #     label='Between groups')
         # Set axes properties
         axs[axs_row].set_xlabel(
             r'$\text{Links between groups}$', horizontalalignment='right', x=1.0)
@@ -6389,80 +6164,269 @@ def violin_plot_SBM_recall_vs_links_out():
     return fig
 
 
-def violin_plot_SBM_precision_OLD():
-    # Violin plot of precision within and between groups vs. nodes_n
-    subplots_v = 1
+def plot_SBM_FP_vs_links_out():
+    # FP vs. links_out
+    # Subplots vertical: algorithms
+    subplots_v = len(algorithms)
     subplots_h = 1
     fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
     # Select data of interest
     df_interest = df[parameters_explored + [
-        'precision_within_groups',
-        'precision_between_groups',
+        'FP_within_groups',
+        'FP_between_groups',
         ]]
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
     df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    for (axs_row, algorithm) in enumerate(algorithms):
+        # Set subplot title
+        axs[axs_row].set_title('{0}'.format(
+            algorithm_names[algorithm]))
+        # Select dataframe entries(i.e runs) with the same algorithm
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group and concatenate lists
+        df_aggregate = df_algorithm.groupby('links_out').agg(
+            lambda x: x.tolist())
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        FP_within_groups = [
+            df_aggregate.loc[links_out].FP_within_groups
+            for links_out in links_out_range]
+        FP_between_groups = [
+            df_aggregate.loc[links_out].FP_between_groups
+            for links_out in links_out_range]
+        mean_vals_real = [np.nanmean(df_aggregate.loc[links_out].FP_within_groups) for links_out in links_out_range]
+        mean_vals_inferred = [np.nanmean(df_aggregate.loc[links_out].FP_between_groups) for links_out in links_out_range]
+        # mean vals
+        axs[axs_row].plot(
+            links_out_range,
+            mean_vals_real,
+            color='tab:blue',
+            label='Within groups')
+        axs[axs_row].plot(
+            links_out_range,
+            mean_vals_inferred,
+            color='tab:orange',
+            label='Between groups')
+        # scatter
+        axs[axs_row].scatter(
+            df_algorithm['links_out'].values.astype(float).tolist(),
+            df_algorithm['FP_within_groups'].values,
+            color='tab:blue',
+            alpha=0.3)
+        axs[axs_row].scatter(
+            df_algorithm['links_out'].values.astype(float).tolist(),
+            df_algorithm['FP_between_groups'].values,
+            color='tab:orange',
+            alpha=0.3)
+        # Set axes properties
+        axs[axs_row].set_xlabel(
+            r'$\text{Links between groups}$', horizontalalignment='right', x=1.0)
+        axs[axs_row].set_ylabel(
+            r'$\text{False positives}$')
+        axs[axs_row].yaxis.set_ticks_position('both')
+        axs[axs_row].set_ylim(bottom=0)#, top=1.1)
+        axs[axs_row].legend()
+    return fig
+
+
+def plot_SBM_FP_rate_vs_links_out():
+    # FP vs. links_out
+    # Subplots vertical: algorithms
+    subplots_v = len(algorithms)
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'FP_rate_within_groups',
+        'FP_rate_between_groups',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
     parameters_to_average = {'repetition_i'}
-    axs_row = 0
-    #for (alg_i, algorithm) in enumerate(algorithms):
+    for (axs_row, algorithm) in enumerate(algorithms):
+        # Set subplot title
+        axs[axs_row].set_title('{0}'.format(
+            algorithm_names[algorithm]))
         # Select dataframe entries(i.e runs) with the same algorithm
-        # df_algorithm = df_interest.loc[
-        #     df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
         # Group and concatenate lists
-        # df_aggregate = df_algorithm.groupby('nodes_n').agg(
-        #     lambda x: x.tolist())
+        df_aggregate = df_algorithm.groupby('links_out').agg(
+            lambda x: x.tolist())
         # Ensure that only the desired parameters are aggregated or averaged
-    df_algorithm = df_interest
-    # df_keys_remaining = df_algorithm.columns
-    # check_remaining_dimensions(df_keys_remaining, parameters_to_average)
-    precision_within_groups = [df_algorithm.loc[df_algorithm['algorithm'] == algorithm].precision_within_groups.values.tolist() for algorithm in algorithms]
-    precision_between_groups = [df_algorithm.loc[df_algorithm['algorithm'] == algorithm].precision_between_groups.values.tolist() for algorithm in algorithms]
-    # Labels for legend
-    labels = []
-    def add_label(violin, label):
-        color = violin["bodies"][0].get_facecolor().flatten()
-        labels.append((Patch(color=color), label))
-    # Violin plot of precision_within_groups
-    positions = np.arange(1, len(algorithms) + 1)
-    print(positions)
-    violin_within = axs[axs_row].violinplot(
-        precision_within_groups,
-        positions=positions,
-        widths=0.5,
-        showmeans=True,
-        showextrema=False,
-        showmedians=False,
-        #points=100,
-        #bw_method=
-        )
-    add_label(violin_within, 'Within groups')    
-    # Violin plot of precision_between_groups
-    violin_between = axs[axs_row].violinplot(
-        precision_between_groups,
-        positions=positions+len(algorithms),
-        widths=0.5,
-        showmeans=True,
-        showextrema=False,
-        showmedians=False,
-        #points=100,
-        #bw_method=
-        )
-    add_label(violin_between, 'Between groups')    
-    # Set axes properties
-    # axs[axs_row].set_xlabel(
-    #     r'$\text{N}$', horizontalalignment='right', x=1.0)
-    axs[axs_row].set_ylabel(
-        r'$\text{Precision}$')
-    axs[axs_row].yaxis.set_ticks_position('both')
-    axs[axs_row].set_xticklabels([algorithm_names[algorithm] for algorithm in algorithms]*2, rotation=90)
-    axs[axs_row].set_ylim(bottom=0, top=1.1)
-    axs[axs_row].legend(*zip(*labels), loc=2)
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        FP_rate_within_groups = [
+            df_aggregate.loc[links_out].FP_rate_within_groups
+            for links_out in links_out_range]
+        FP_rate_between_groups = [
+            df_aggregate.loc[links_out].FP_rate_between_groups
+            for links_out in links_out_range]
+        mean_vals_real = [np.nanmean(df_aggregate.loc[links_out].FP_rate_within_groups) for links_out in links_out_range]
+        mean_vals_inferred = [np.nanmean(df_aggregate.loc[links_out].FP_rate_between_groups) for links_out in links_out_range]
+        # mean vals
+        axs[axs_row].plot(
+            links_out_range,
+            mean_vals_real,
+            color='tab:blue',
+            label='Within groups')
+        axs[axs_row].plot(
+            links_out_range,
+            mean_vals_inferred,
+            color='tab:orange',
+            label='Between groups')
+        # scatter
+        axs[axs_row].scatter(
+            df_algorithm['links_out'].values.astype(float).tolist(),
+            df_algorithm['FP_rate_within_groups'].values,
+            color='tab:blue',
+            alpha=0.3)
+        axs[axs_row].scatter(
+            df_algorithm['links_out'].values.astype(float).tolist(),
+            df_algorithm['FP_rate_between_groups'].values,
+            color='tab:orange',
+            alpha=0.3)
+        # Set axes properties
+        axs[axs_row].set_xlabel(
+            r'$\text{Links between groups}$', horizontalalignment='right', x=1.0)
+        axs[axs_row].set_ylabel(
+            r'$\text{False-positive rate}$')
+        axs[axs_row].yaxis.set_ticks_position('both')
+        axs[axs_row].set_ylim(bottom=0)#, top=1.1)
+        axs[axs_row].legend()
+    return fig
+
+
+def plot_SBM_FP_and_FP_rate_vs_links_out(nodes_n):
+    # FP vs. links_out (left column) and FP_rate vs links out (right column)
+    # Subplots vertical: algorithms
+    subplots_v = len(algorithms)
+    subplots_h = 2
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey='col')
+    # FP
+    axs_col = 0
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'FP_within_groups',
+        'FP_between_groups',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    for (axs_row, algorithm) in enumerate(algorithms):
+        # Set subplot title
+        axs[axs_row, axs_col].set_title('{0}'.format(
+            algorithm_names[algorithm]))
+        # Select dataframe entries(i.e runs) with the same algorithm
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group and concatenate lists
+        df_aggregate = df_algorithm.groupby('links_out').agg(
+            lambda x: x.tolist())
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        mean_vals_real = np.array([np.nanmean(df_aggregate.loc[links_out].FP_within_groups) for links_out in links_out_range]) / nodes_n
+        mean_vals_inferred = np.array([np.nanmean(df_aggregate.loc[links_out].FP_between_groups) for links_out in links_out_range]) / nodes_n
+        # mean vals
+        axs[axs_row, axs_col].plot(
+            links_out_range,
+            mean_vals_real,
+            color='tab:blue',
+            label='Within groups')
+        axs[axs_row, axs_col].plot(
+            links_out_range,
+            mean_vals_inferred,
+            color='tab:orange',
+            label='Between groups')
+        # scatter
+        axs[axs_row, axs_col].scatter(
+            df_algorithm['links_out'].values.astype(int).tolist(),
+            df_algorithm['FP_within_groups'].values / nodes_n,
+            color='tab:blue',
+            alpha=0.3)
+        axs[axs_row, axs_col].scatter(
+            df_algorithm['links_out'].values.astype(int).tolist(),
+            df_algorithm['FP_between_groups'].values / nodes_n,
+            color='tab:orange',
+            alpha=0.3)
+        # Set axes properties
+        axs[axs_row, axs_col].set_ylabel(
+            r'$\text{False positives (per node)}$')
+        axs[axs_row, axs_col].yaxis.set_ticks_position('both')
+        axs[axs_row, axs_col].set_ylim(bottom=0)#, top=1.1)
+        axs[axs_row, axs_col].legend(loc='upper left')
+    axs[axs_row, axs_col].set_xlabel(
+        r'$\text{Links between groups (per node)}$')
+    # FP rate
+    axs_col = 1
+    df_interest = df[parameters_explored + [
+        'FP_rate_within_groups',
+        'FP_rate_between_groups',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    for (axs_row, algorithm) in enumerate(algorithms):
+        # Set subplot title
+        axs[axs_row, axs_col].set_title('{0}'.format(
+            algorithm_names[algorithm]))
+        # Select dataframe entries(i.e runs) with the same algorithm
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group and concatenate lists
+        df_aggregate = df_algorithm.groupby('links_out').agg(
+            lambda x: x.tolist())
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        mean_vals_real = [np.nanmean(df_aggregate.loc[links_out].FP_rate_within_groups) for links_out in links_out_range]
+        mean_vals_inferred = [np.nanmean(df_aggregate.loc[links_out].FP_rate_between_groups) for links_out in links_out_range]
+        # mean vals
+        axs[axs_row, axs_col].plot(
+            links_out_range,
+            mean_vals_real,
+            color='tab:blue',
+            label='Within groups')
+        axs[axs_row, axs_col].plot(
+            links_out_range,
+            mean_vals_inferred,
+            color='tab:orange',
+            label='Between groups')
+        # scatter
+        axs[axs_row, axs_col].scatter(
+            df_algorithm['links_out'].values.astype(int).tolist(),
+            df_algorithm['FP_rate_within_groups'].values,
+            color='tab:blue',
+            alpha=0.3)
+        axs[axs_row, axs_col].scatter(
+            df_algorithm['links_out'].values.astype(int).tolist(),
+            df_algorithm['FP_rate_between_groups'].values,
+            color='tab:orange',
+            alpha=0.3)
+        # Set axes properties
+        axs[axs_row, axs_col].set_ylabel(
+            r'$\text{False positive rate}$')
+        axs[axs_row, axs_col].yaxis.set_ticks_position('both')
+        axs[axs_row, axs_col].set_ylim(bottom=0)#, top=1.1)
+        axs[axs_row, axs_col].legend(loc='upper right')
+    axs[axs_row, axs_col].set_xlabel(
+        r'$\text{Links between groups (per node)}$')
     return fig
 
 
@@ -6478,10 +6442,6 @@ def violin_plot_SBM_precision():
         ]]
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
-    df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
     df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
@@ -6540,10 +6500,6 @@ def violin_plot_SBM_recall():
     if 'algorithm' not in parameters_explored:
         df_interest['algorithm'] = df['algorithm']
     df_interest = df_interest.loc[
-        df_interest['p_value'] == alpha_interest].drop('p_value', 1)
-    df_interest = df_interest.loc[
-        df_interest['nodes_n'] == N_interest].drop('nodes_n', 1)
-    df_interest = df_interest.loc[
         df_interest['samples_n'] == T_interest].drop('samples_n', 1)
     # Choose which of the explored parameters to collect data over
     parameters_to_average = {'repetition_i'}
@@ -6588,9 +6544,1199 @@ def violin_plot_SBM_recall():
     return fig
 
 
+def plot_SBM_partition_modularity_vs_links_out():
+    # Partition perfomance vs. links_out
+    subplots_v = len(samples_n_range)
+    subplots_h = 1
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'block_partition_modularity_real',
+        'block_partition_modularity_inferred',
+        ]]
+    if 'algorithm' not in parameters_explored:
+        df_interest['algorithm'] = df['algorithm']
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    for axs_row, samples_n in enumerate(samples_n_range):
+        # Set subplot title
+        axs[axs_row].set_title(r'$T={0}$'.format(samples_n))
+        df_samples_n = df_interest.loc[
+            df_interest['samples_n'] == samples_n].drop('samples_n', 1)
+        # Plot real values
+        df_algorithm = df_samples_n.loc[df_samples_n['algorithm'] == algorithms[-1]]
+        df_aggregate = df_algorithm.groupby('links_out').agg(lambda x: list(x))
+        block_partition_modularity_real = [
+            df_aggregate.loc[links_out].block_partition_modularity_real
+            for links_out in links_out_range]
+        mean_vals_real = [np.nanmean(df_aggregate.loc[links_out].block_partition_modularity_real) for links_out in links_out_range]
+        axs[axs_row].plot(
+            links_out_range,
+            mean_vals_real,
+            label='Real',
+            linestyle = 'None',
+            color='k',
+            marker='x',
+            fillstyle='none',
+            zorder=99,  # bring to foreground
+            )
+        for (alg_i, algorithm) in enumerate(algorithms):
+            # Select dataframe entries(i.e runs) with the same algorithm
+            df_algorithm = df_samples_n.loc[
+                df_samples_n['algorithm'] == algorithm].drop('algorithm', 1)
+            # Group and concatenate lists
+            df_aggregate = df_algorithm.groupby('links_out').agg(
+                lambda x: x.tolist())
+            # Ensure that only the desired parameters are aggregated or averaged
+            df_keys_remaining = df_aggregate.columns.get_level_values(0)
+            check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+
+            block_partition_modularity_inferred = [
+                df_aggregate.loc[links_out].block_partition_modularity_inferred
+                for links_out in links_out_range]
+            mean_vals_inferred = [np.nanmean(df_aggregate.loc[links_out].block_partition_modularity_inferred) for links_out in links_out_range]
+            # mean vals
+            axs[axs_row].plot(
+                links_out_range,
+                mean_vals_inferred,
+                color=colors_default[alg_i + 1],
+                marker=markers_default[alg_i + 1],
+                label=algorithm_names[algorithm])
+            # scatter
+            axs[axs_row].scatter(
+                df_algorithm['links_out'].values.astype(float).tolist(),
+                df_algorithm['block_partition_modularity_inferred'].values,
+                color=colors_default[alg_i + 1],
+                marker=markers_default[alg_i + 1],
+                alpha=0.3)
+        # Set axes properties
+        axs[axs_row].set_ylabel(
+            r'$\text{Modularity}$')
+        axs[axs_row].yaxis.set_ticks_position('both')
+        #axs[axs_row].set_ylim(bottom=0)
+        axs[axs_row].legend()
+        axs[axs_row].set_xlabel(
+            r'$\text{Links between groups}$', horizontalalignment='right', x=1.0)
+    return fig
+
+
 # -------------------------------------------------------------------------
 # endregion
 # -------------------------------------------------------------------------
+
+
+
+# -------------------------------------------------------------------------
+# region Macaque
+# -------------------------------------------------------------------------
+
+def plot_performance_vs_fixed_coupling():
+    subplots_v = len(algorithms)
+    subplots_h = 2#len(samples_n_range)
+    fig, axs = my_subplots(subplots_v, subplots_h)
+    # Select data of interest
+    df_interest = df[
+        parameters_explored + ['precision', 'recall', 'specificity']]
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    for (axs_col, samples_n) in enumerate(samples_n_range):
+        # Select dataframe entries(i.e runs) with the desired property
+        df_samples_n = df_interest.loc[
+            df_interest['samples_n'] == samples_n].drop('samples_n', 1)
+        for (axs_row, algorithm) in enumerate(algorithms):
+            # Set subplot title
+            axs[axs_row, axs_col].set_title('{0} (T={1})'.format(
+                algorithm_names[algorithm],
+                samples_n))
+            # Select dataframe entries(i.e runs) with the same algorithm
+            df_algorithm = df_samples_n.loc[
+                df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+            # Group by fixed_coupling
+            df_aggregate = df_algorithm.groupby('fixed_coupling').agg(
+                lambda x: list(x))
+            # Ensure that only the desired parameters are aggregated or averaged
+            df_keys_remaining = df_aggregate.columns.get_level_values(0)
+            check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+            # Plot precision
+            axs[axs_row, axs_col].plot(
+                fixed_coupling_range,
+                [np.nanmean(df_aggregate['precision'][fixed_coupling])
+                    for fixed_coupling in fixed_coupling_range],)
+            axs[axs_row, axs_col].scatter(
+                df_algorithm['fixed_coupling'].values.astype(float).tolist(),
+                df_algorithm['precision'].values,
+                alpha=0.3)
+            # Plot recall
+            axs[axs_row, axs_col].plot(
+                fixed_coupling_range,
+                [np.nanmean(df_aggregate['recall'][fixed_coupling])
+                for fixed_coupling in fixed_coupling_range],)
+            axs[axs_row, axs_col].scatter(
+                df_algorithm['fixed_coupling'].values.astype(float).tolist(),
+                df_algorithm['recall'].values,
+                alpha=0.3)
+            # Plot false positive rate
+            axs[axs_row, axs_col].plot(
+                fixed_coupling_range,
+                [np.nanmean(df_aggregate['specificity'][fixed_coupling])
+                for fixed_coupling in fixed_coupling_range])
+            axs[axs_row, axs_col].scatter(
+                df_algorithm['fixed_coupling'].values.astype(float).tolist(),
+                df_algorithm['specificity'].values,
+                alpha=0.3)
+            # Set axes properties
+            axs[axs_row, 0].set_ylabel(r'$\text{Performance}$')
+            axs[axs_row, axs_col].yaxis.set_ticks_position('both')
+            #axs[axs_row, axs_col].set_xlim(left=0.003, right=2.)
+            axs[axs_row, axs_col].set_ylim(bottom=0)
+            # Add legend
+            axs[axs_row, axs_col].legend(
+                labels=['Precision', 'Recall', 'Specificity'],
+                loc='lower left')
+        axs[axs_row, axs_col].set_xlabel(r'$\text{Weight}$') #, horizontalalignment='right', x=1.0)
+
+    return fig
+
+
+def plot_clustering_vs_fixed_coupling():
+    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'clustering_real',
+        'clustering_inferred']]
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    # Plot real values
+    df_aggregate = df_interest.groupby('fixed_coupling').agg(lambda x: list(x))
+    axs[0].plot(
+        fixed_coupling_range,
+        [np.nanmean(df_aggregate['clustering_real'][fixed_coupling])
+            for fixed_coupling in fixed_coupling_range],
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    # axs[0].scatter(
+    #     df_algorithm['fixed_coupling'].values.astype(float).tolist(),
+    #     [np.nanmean(x) for x in df_algorithm['clustering_real'].values],
+    #     alpha=0.3,
+    #     color='k',
+    #     marker='x',
+    #     zorder=99,  # bring to foreground
+    #     )
+    for algorithm_i, algorithm in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same number of samples
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by fixed_coupling
+        df_aggregate = df_algorithm.groupby('fixed_coupling').agg(
+            lambda x: list(x))
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Plot average clustering coefficient inferred
+        axs[0].plot(
+            fixed_coupling_range,
+            [np.nanmean(df_aggregate['clustering_inferred'][fixed_coupling])
+             for fixed_coupling in fixed_coupling_range],
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        axs[0].scatter(
+            df_algorithm['fixed_coupling'].values.astype(float).tolist(),
+            [np.nanmean(x) for x in df_algorithm['clustering_inferred'].values],
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        # Set axes properties
+        axs[0].set_xlabel(r'$\text{Weight}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Clustering coefficient}$')
+        axs[0].yaxis.set_ticks_position('both')
+        #axs[0].set_xlim(left=0.003, right=2.)
+        # Add legend
+        axs[0].legend(loc='upper right')
+
+    return fig
+
+
+def plot_path_lenght_vs_fixed_coupling():
+    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'average_shortest_path_length_real',
+        'average_shortest_path_length_inferred']]
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    # Plot average path lenght real
+    df_aggregate = df_interest.groupby('fixed_coupling').agg(lambda x: list(x))
+    axs[0].plot(
+        fixed_coupling_range,
+        [np.nanmean(df_aggregate['average_shortest_path_length_real'][fixed_coupling])
+            for fixed_coupling in fixed_coupling_range],
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    # axs[0].scatter(
+    #     df_algorithm['fixed_coupling'].values.astype(float).tolist(),
+    #     df_algorithm['average_shortest_path_length_real'].values,
+    #     alpha=0.3)
+    for algorithm_i, algorithm in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same number of samples
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by fixed_coupling
+        df_aggregate = df_algorithm.groupby('fixed_coupling').agg(
+            lambda x: list(x))
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Plot average path lenght inferred
+        axs[0].plot(
+            fixed_coupling_range,
+            [np.nanmean(df_aggregate['average_shortest_path_length_inferred'][fixed_coupling])
+             for fixed_coupling in fixed_coupling_range],
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        axs[0].scatter(
+            df_algorithm['fixed_coupling'].values.astype(float).tolist(),
+            df_algorithm['average_shortest_path_length_inferred'].values,
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        # Set axes properties
+        axs[0].set_xlabel(r'$\text{Weight}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Characteristic path length}$')
+        axs[0].yaxis.set_ticks_position('both')
+        # axs[0].set_xlim(left=0.003, right=2.)
+        # Add legend
+        axs[0].legend(loc='upper right')
+
+    return fig
+
+
+def plot_average_global_efficiency_vs_fixed_coupling():
+    # Plot global_efficiency vs. Watts-Strogatz rewiring prob (scatter error)
+    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'average_global_efficiency_real',
+        'average_global_efficiency_inferred']]
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    # Plot global_efficiency real
+    df_aggregate = df_interest.groupby('fixed_coupling').agg(lambda x: list(x))
+    axs[0].plot(
+        fixed_coupling_range,
+        [np.nanmean(df_aggregate['average_global_efficiency_real'][fixed_coupling])
+            for fixed_coupling in fixed_coupling_range],
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    # axs[0].scatter(
+    #     df_algorithm['fixed_coupling'].values.astype(float).tolist(),
+    #     df_algorithm['average_global_efficiency_real'].values,
+    #     alpha=0.3)
+    for algorithm_i, algorithm in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same number of samples
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by fixed_coupling
+        df_aggregate = df_algorithm.groupby('fixed_coupling').agg(
+            lambda x: list(x))
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Plot global_efficiency inferred
+        axs[0].plot(
+            fixed_coupling_range,
+            [np.nanmean(df_aggregate['average_global_efficiency_inferred'][fixed_coupling])
+             for fixed_coupling in fixed_coupling_range],
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        axs[0].scatter(
+            df_algorithm['fixed_coupling'].values.astype(float).tolist(),
+            df_algorithm['average_global_efficiency_inferred'].values,
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        # Set axes properties
+        axs[0].set_xlabel(r'$\text{Weight}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Global efficiency}$')
+        axs[0].yaxis.set_ticks_position('both')
+        # axs[0].set_xlim(left=0.003, right=2.)
+        # Add legend
+        axs[0].legend(loc='lower right')
+
+    return fig
+
+
+def plot_local_efficiency_vs_fixed_coupling():
+    # Plot local efficiency vs. Watts-Strogatz rewiring prob (scatter error)
+    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'local_efficiency_real',
+        'local_efficiency_inferred']]
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    # Real
+    df_aggregate = df_interest.groupby('fixed_coupling').agg(lambda x: list(x))
+    axs[0].plot(
+        fixed_coupling_range,
+        [np.nanmean(df_aggregate['local_efficiency_real'][fixed_coupling])
+            for fixed_coupling in fixed_coupling_range],
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    # axs[0].scatter(
+    #     df_algorithm['fixed_coupling'].values.astype(float).tolist(),
+    #     [np.nanmean(x) for x in df_algorithm['local_efficiency_real'].values],
+    #     alpha=0.3,
+    #     linestyle = 'None',
+    #     color='k',
+    #     marker='x',
+    #     zorder=99,  # bring to foreground
+    #     )
+    for algorithm_i, algorithm in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same number of samples
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by fixed_coupling
+        df_aggregate = df_algorithm.groupby('fixed_coupling').agg(
+            lambda x: list(x))
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Inferred
+        axs[0].plot(
+            fixed_coupling_range,
+            [np.nanmean(df_aggregate['local_efficiency_inferred'][fixed_coupling])
+             for fixed_coupling in fixed_coupling_range],
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        axs[0].scatter(
+            df_algorithm['fixed_coupling'].values.astype(float).tolist(),
+            [np.nanmean(x) for x in df_algorithm['local_efficiency_inferred'].values],
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        # Set axes properties
+        axs[0].set_xlabel(r'$\text{Weight}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Local efficiency}$')
+        axs[0].yaxis.set_ticks_position('both')
+        # axs[0].set_xlim(left=0.003, right=2.)
+        # Add legend
+        axs[0].legend(loc='lower left')
+
+    return fig
+
+
+def scatter_out_degree_inferred_vs_out_degree_real_macaque_fixed_coupling():
+    # Scatter out-degree inferred vs. real
+    # Subplots horizontal: algorithms
+    subplots_v = len(algorithms)
+    subplots_h = len(fixed_coupling_range)
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'out_degree_inferred',
+        'out_degree_real',
+        ]]
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    for (axs_row, algorithm) in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same algorithm
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by fixed_coupling and concatenate TE values lists
+        df_aggregate = df_algorithm.groupby('fixed_coupling').agg(
+            lambda x: x.tolist())
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        for (axs_col, fixed_coupling) in enumerate(fixed_coupling_range):
+            # Set subplot title
+            axs[axs_row, axs_col].set_title('{1} (weight={0})'.format(
+                fixed_coupling,
+                algorithm_names[algorithm]))
+            out_degree_inferred = np.concatenate(
+                df_aggregate.loc[fixed_coupling].out_degree_inferred)
+            out_degree_real = np.concatenate(
+                df_aggregate.loc[fixed_coupling].out_degree_real)
+            # Scatter
+            axs[axs_row, axs_col].scatter(
+                out_degree_real,
+                out_degree_inferred,
+                )
+            # Plot identity line
+            axs[axs_row, axs_col].plot(
+                [min(out_degree_real), max(out_degree_real)],
+                [min(out_degree_real), max(out_degree_real)],
+                'g--')
+            # Set axes properties
+            axs[axs_row, axs_col].set_xlabel(
+                r'$\text{Out-degree real}$')  # , horizontalalignment='right', x=1.0)
+            axs[axs_row, 0].set_ylabel(
+                r'$\text{Out-degree inferred}$')
+            axs[axs_row, axs_col].yaxis.set_ticks_position('both')
+    return fig
+
+
+def plot_betweenness_centrality_vs_fixed_coupling():
+    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'betweenness_centrality_real',
+        'betweenness_centrality_inferred']]
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    # Plot real values
+    df_aggregate = df_interest.groupby('fixed_coupling').agg(lambda x: list(x))
+    axs[0].plot(
+        fixed_coupling_range,
+        [np.nanmean(df_aggregate['betweenness_centrality_real'][fixed_coupling])
+            for fixed_coupling in fixed_coupling_range],
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    # axs[0].scatter(
+    #     df_algorithm['fixed_coupling'].values.astype(float).tolist(),
+    #     [np.nanmean(x) for x in df_algorithm['betweenness_centrality_real'].values],
+    #     alpha=0.3,
+    #     color='k',
+    #     marker='x',
+    #     zorder=99,  # bring to foreground
+    #     )
+    for algorithm_i, algorithm in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same number of samples
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by fixed_coupling
+        df_aggregate = df_algorithm.groupby('fixed_coupling').agg(
+            lambda x: list(x))
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Plot average betweenness_centrality coefficient inferred
+        axs[0].plot(
+            fixed_coupling_range,
+            [np.nanmean(df_aggregate['betweenness_centrality_inferred'][fixed_coupling])
+             for fixed_coupling in fixed_coupling_range],
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        axs[0].scatter(
+            df_algorithm['fixed_coupling'].values.astype(float).tolist(),
+            [np.nanmean(x) for x in df_algorithm['betweenness_centrality_inferred'].values],
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        # Set axes properties
+        axs[0].set_xlabel(r'$\text{Weight}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Centrality}$')
+        axs[0].yaxis.set_ticks_position('both')
+        #axs[0].set_xlim(left=0.003, right=2.)
+        # Add legend
+        axs[0].legend(loc='upper right')
+
+    return fig
+
+
+# normalised incoming weights
+
+
+def plot_performance_vs_total_cross_coupling():
+    subplots_v = len(algorithms)
+    subplots_h = len(samples_n_range)
+    fig, axs = my_subplots(subplots_v, subplots_h)
+    # Select data of interest
+    df_interest = df[
+        parameters_explored + ['precision', 'recall', 'specificity']]
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    for (axs_col, samples_n) in enumerate(samples_n_range):
+        # Select dataframe entries(i.e runs) with the desired property
+        df_samples_n = df_interest.loc[
+            df_interest['samples_n'] == samples_n].drop('samples_n', 1)
+        for (axs_row, algorithm) in enumerate(algorithms):
+            # Set subplot title
+            axs[axs_row, axs_col].set_title('{0} (T={1})'.format(
+                algorithm_names[algorithm],
+                samples_n))
+            # Select dataframe entries(i.e runs) with the same algorithm
+            df_algorithm = df_samples_n.loc[
+                df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+            # Group by total_cross_coupling
+            df_aggregate = df_algorithm.groupby('total_cross_coupling').agg(
+                lambda x: list(x))
+            # Ensure that only the desired parameters are aggregated or averaged
+            df_keys_remaining = df_aggregate.columns.get_level_values(0)
+            check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+            # Plot precision
+            axs[axs_row, axs_col].plot(
+                total_cross_coupling_range,
+                [np.nanmean(df_aggregate['precision'][total_cross_coupling])
+                    for total_cross_coupling in total_cross_coupling_range],
+                '-o'
+                ),
+            axs[axs_row, axs_col].scatter(
+                df_algorithm['total_cross_coupling'].values.astype(float).tolist(),
+                df_algorithm['precision'].values,
+                alpha=0.3)
+            # Plot recall
+            axs[axs_row, axs_col].plot(
+                total_cross_coupling_range,
+                [np.nanmean(df_aggregate['recall'][total_cross_coupling])
+                for total_cross_coupling in total_cross_coupling_range],
+                '-o'
+                )
+            axs[axs_row, axs_col].scatter(
+                df_algorithm['total_cross_coupling'].values.astype(float).tolist(),
+                df_algorithm['recall'].values,
+                alpha=0.3)
+            # Plot false positive rate
+            axs[axs_row, axs_col].plot(
+                total_cross_coupling_range,
+                [np.nanmean(df_aggregate['specificity'][total_cross_coupling])
+                for total_cross_coupling in total_cross_coupling_range],
+                '-o'
+                )
+            axs[axs_row, axs_col].scatter(
+                df_algorithm['total_cross_coupling'].values.astype(float).tolist(),
+                df_algorithm['specificity'].values,
+                alpha=0.3)
+            # Set axes properties
+            axs[axs_row, 0].set_ylabel(r'$\text{Performance}$')
+            axs[axs_row, axs_col].yaxis.set_ticks_position('both')
+            #axs[axs_row, axs_col].set_xlim(left=0.003, right=2.)
+            axs[axs_row, axs_col].set_ylim(bottom=0)
+            # Add legend
+            axs[axs_row, axs_col].legend(
+                labels=['Precision', 'Recall', 'Specificity'],
+                loc='center left')
+        axs[axs_row, axs_col].set_xlabel(r'$\text{Cross-coupling}$') #, horizontalalignment='right', x=1.0)
+
+    return fig
+
+
+def plot_performance_vs_samples_n_macaque():
+    subplots_v = len(algorithms)
+    subplots_h = len(total_cross_coupling_range)
+    fig, axs = my_subplots(subplots_v, subplots_h)
+    # Select data of interest
+    df_interest = df[
+        parameters_explored + ['precision', 'recall', 'specificity']]
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    for (axs_col, total_cross_coupling) in enumerate(total_cross_coupling_range):
+        # Select dataframe entries(i.e runs) with the desired property
+        df_total_cross_coupling = df_interest.loc[
+            df_interest['total_cross_coupling'] == total_cross_coupling].drop('total_cross_coupling', 1)
+        for (axs_row, algorithm) in enumerate(algorithms):
+            # Set subplot title
+            axs[axs_row, axs_col].set_title('{0} (Cross-coupling={1})'.format(
+                algorithm_names[algorithm],
+                total_cross_coupling))
+            # Select dataframe entries(i.e runs) with the same algorithm
+            df_algorithm = df_total_cross_coupling.loc[
+                df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+            # Group by samples_n
+            df_aggregate = df_algorithm.groupby('samples_n').agg(
+                lambda x: list(x))
+            # Ensure that only the desired parameters are aggregated or averaged
+            df_keys_remaining = df_aggregate.columns.get_level_values(0)
+            check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+            # Plot precision
+            axs[axs_row, axs_col].plot(
+                samples_n_range,
+                [np.nanmean(df_aggregate['precision'][samples_n])
+                    for samples_n in samples_n_range],)
+            axs[axs_row, axs_col].scatter(
+                df_algorithm['samples_n'].values.astype(float).tolist(),
+                df_algorithm['precision'].values,
+                alpha=0.3)
+            # Plot recall
+            axs[axs_row, axs_col].plot(
+                samples_n_range,
+                [np.nanmean(df_aggregate['recall'][samples_n])
+                for samples_n in samples_n_range],)
+            axs[axs_row, axs_col].scatter(
+                df_algorithm['samples_n'].values.astype(float).tolist(),
+                df_algorithm['recall'].values,
+                alpha=0.3)
+            # Plot false positive rate
+            axs[axs_row, axs_col].plot(
+                samples_n_range,
+                [np.nanmean(df_aggregate['specificity'][samples_n])
+                for samples_n in samples_n_range])
+            axs[axs_row, axs_col].scatter(
+                df_algorithm['samples_n'].values.astype(float).tolist(),
+                df_algorithm['specificity'].values,
+                alpha=0.3)
+            # Set axes properties
+            axs[axs_row, 0].set_ylabel(r'$\text{Performance}$')
+            axs[axs_row, axs_col].set_xscale('log')
+            axs[axs_row, axs_col].yaxis.set_ticks_position('both')
+            axs[axs_row, axs_col].set_xlim(left=0.5*min(samples_n_range), right=2*max(samples_n_range))
+            axs[axs_row, axs_col].set_ylim(bottom=0)
+            # Add legend
+            axs[0, axs_col].legend(
+                labels=['Precision', 'Recall', 'Specificity'],
+                loc='lower left')
+        axs[axs_row, axs_col].set_xlabel(r'$\text{T}$') #, horizontalalignment='right', x=1.0)
+
+    return fig
+
+
+def plot_clustering_vs_total_cross_coupling():
+    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'clustering_real',
+        'clustering_inferred']]
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    # Plot real values
+    df_aggregate = df_interest.groupby('total_cross_coupling').agg(lambda x: list(x))
+    axs[0].plot(
+        total_cross_coupling_range,
+        [np.nanmean(df_aggregate['clustering_real'][total_cross_coupling])
+            for total_cross_coupling in total_cross_coupling_range],
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    # axs[0].scatter(
+    #     df_algorithm['total_cross_coupling'].values.astype(float).tolist(),
+    #     [np.nanmean(x) for x in df_algorithm['clustering_real'].values],
+    #     alpha=0.3,
+    #     color='k',
+    #     marker='x',
+    #     zorder=99,  # bring to foreground
+    #     )
+    for algorithm_i, algorithm in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same number of samples
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by total_cross_coupling
+        df_aggregate = df_algorithm.groupby('total_cross_coupling').agg(
+            lambda x: list(x))
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Plot average clustering coefficient inferred
+        axs[0].plot(
+            total_cross_coupling_range,
+            [np.nanmean(df_aggregate['clustering_inferred'][total_cross_coupling])
+             for total_cross_coupling in total_cross_coupling_range],
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        axs[0].scatter(
+            df_algorithm['total_cross_coupling'].values.astype(float).tolist(),
+            [np.nanmean(x) for x in df_algorithm['clustering_inferred'].values],
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        # Set axes properties
+        axs[0].set_xlabel(r'$\text{Weight}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Clustering coefficient}$')
+        axs[0].yaxis.set_ticks_position('both')
+        #axs[0].set_xlim(left=0.003, right=2.)
+        # Add legend
+        axs[0].legend(loc='upper left')
+
+    return fig
+
+
+def plot_path_lenght_vs_total_cross_coupling():
+    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'average_shortest_path_length_real',
+        'average_shortest_path_length_inferred']]
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    # Plot average path lenght real
+    df_aggregate = df_interest.groupby('total_cross_coupling').agg(lambda x: list(x))
+    axs[0].plot(
+        total_cross_coupling_range,
+        [np.nanmean(df_aggregate['average_shortest_path_length_real'][total_cross_coupling])
+            for total_cross_coupling in total_cross_coupling_range],
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    # axs[0].scatter(
+    #     df_algorithm['total_cross_coupling'].values.astype(float).tolist(),
+    #     df_algorithm['average_shortest_path_length_real'].values,
+    #     alpha=0.3)
+    for algorithm_i, algorithm in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same number of samples
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by total_cross_coupling
+        df_aggregate = df_algorithm.groupby('total_cross_coupling').agg(
+            lambda x: list(x))
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Plot average path lenght inferred
+        axs[0].plot(
+            total_cross_coupling_range,
+            [np.nanmean(df_aggregate['average_shortest_path_length_inferred'][total_cross_coupling])
+             for total_cross_coupling in total_cross_coupling_range],
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        axs[0].scatter(
+            df_algorithm['total_cross_coupling'].values.astype(float).tolist(),
+            df_algorithm['average_shortest_path_length_inferred'].values,
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        # Set axes properties
+        axs[0].set_xlabel(r'$\text{Weight}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Characteristic path length}$')
+        axs[0].yaxis.set_ticks_position('both')
+        # axs[0].set_xlim(left=0.003, right=2.)
+        # Add legend
+        axs[0].legend(loc='upper right')
+
+    return fig
+
+
+def plot_average_global_efficiency_vs_total_cross_coupling():
+    # Plot global_efficiency vs. Watts-Strogatz rewiring prob (scatter error)
+    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'average_global_efficiency_real',
+        'average_global_efficiency_inferred']]
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    # Plot global_efficiency real
+    df_aggregate = df_interest.groupby('total_cross_coupling').agg(lambda x: list(x))
+    axs[0].plot(
+        total_cross_coupling_range,
+        [np.nanmean(df_aggregate['average_global_efficiency_real'][total_cross_coupling])
+            for total_cross_coupling in total_cross_coupling_range],
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    # axs[0].scatter(
+    #     df_algorithm['total_cross_coupling'].values.astype(float).tolist(),
+    #     df_algorithm['average_global_efficiency_real'].values,
+    #     alpha=0.3)
+    for algorithm_i, algorithm in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same number of samples
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by total_cross_coupling
+        df_aggregate = df_algorithm.groupby('total_cross_coupling').agg(
+            lambda x: list(x))
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Plot global_efficiency inferred
+        axs[0].plot(
+            total_cross_coupling_range,
+            [np.nanmean(df_aggregate['average_global_efficiency_inferred'][total_cross_coupling])
+             for total_cross_coupling in total_cross_coupling_range],
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        axs[0].scatter(
+            df_algorithm['total_cross_coupling'].values.astype(float).tolist(),
+            df_algorithm['average_global_efficiency_inferred'].values,
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        # Set axes properties
+        axs[0].set_xlabel(r'$\text{Cross-coupling}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Global efficiency}$')
+        axs[0].yaxis.set_ticks_position('both')
+        # axs[0].set_xlim(left=0.003, right=2.)
+        # Add legend
+        axs[0].legend(loc='lower right')
+
+    return fig
+
+
+def plot_local_efficiency_vs_total_cross_coupling():
+    # Plot local efficiency vs. Watts-Strogatz rewiring prob (scatter error)
+    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'local_efficiency_real',
+        'local_efficiency_inferred']]
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    # Real
+    df_aggregate = df_interest.groupby('total_cross_coupling').agg(lambda x: list(x))
+    axs[0].plot(
+        total_cross_coupling_range,
+        [np.nanmean(df_aggregate['local_efficiency_real'][total_cross_coupling])
+            for total_cross_coupling in total_cross_coupling_range],
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    # axs[0].scatter(
+    #     df_algorithm['total_cross_coupling'].values.astype(float).tolist(),
+    #     [np.nanmean(x) for x in df_algorithm['local_efficiency_real'].values],
+    #     alpha=0.3,
+    #     linestyle = 'None',
+    #     color='k',
+    #     marker='x',
+    #     zorder=99,  # bring to foreground
+    #     )
+    for algorithm_i, algorithm in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same number of samples
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by total_cross_coupling
+        df_aggregate = df_algorithm.groupby('total_cross_coupling').agg(
+            lambda x: list(x))
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Inferred
+        axs[0].plot(
+            total_cross_coupling_range,
+            [np.nanmean(df_aggregate['local_efficiency_inferred'][total_cross_coupling])
+             for total_cross_coupling in total_cross_coupling_range],
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        axs[0].scatter(
+            df_algorithm['total_cross_coupling'].values.astype(float).tolist(),
+            [np.nanmean(x) for x in df_algorithm['local_efficiency_inferred'].values],
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        # Set axes properties
+        axs[0].set_xlabel(r'$\text{Cross-coupling}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Local efficiency}$')
+        axs[0].yaxis.set_ticks_position('both')
+        # axs[0].set_xlim(left=0.003, right=2.)
+        # Add legend
+        axs[0].legend(loc='lower right')
+
+    return fig
+
+
+def plot_average_global_efficiency_vs_samples_n():
+    # Plot global_efficiency vs. Watts-Strogatz rewiring prob (scatter error)
+    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'average_global_efficiency_real',
+        'average_global_efficiency_inferred']]
+    df_interest = df_interest.loc[
+        df_interest['total_cross_coupling'] == total_cross_coupling_interest].drop('total_cross_coupling', 1)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    # Plot global_efficiency real
+    df_aggregate = df_interest.groupby('samples_n').agg(lambda x: list(x))
+    axs[0].plot(
+        samples_n_range,
+        [np.nanmean(df_aggregate['average_global_efficiency_real'][samples_n])
+            for samples_n in samples_n_range],
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    for algorithm_i, algorithm in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same number of samples
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by samples_n
+        df_aggregate = df_algorithm.groupby('samples_n').agg(
+            lambda x: list(x))
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Plot global_efficiency inferred
+        axs[0].plot(
+            samples_n_range,
+            [np.nanmean(df_aggregate['average_global_efficiency_inferred'][samples_n])
+             for samples_n in samples_n_range],
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        axs[0].scatter(
+            df_algorithm['samples_n'].values.astype(float).tolist(),
+            df_algorithm['average_global_efficiency_inferred'].values,
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        # Set axes properties
+        axs[0].set_xlabel(r'$\text{T}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Global efficiency}$')
+        axs[0].yaxis.set_ticks_position('both')
+        axs[0].set_xscale('log')
+        axs[0].set_xlim(left=0.5*min(samples_n_range), right=2*max(samples_n_range))
+        # Add legend
+        axs[0].legend(loc='lower right')
+
+    return fig
+
+
+def plot_local_efficiency_vs_samples_n():
+    # Plot local efficiency vs. Watts-Strogatz rewiring prob (scatter error)
+    fig, axs = my_subplots(1, 1, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'local_efficiency_real',
+        'local_efficiency_inferred']]
+    df_interest = df_interest.loc[
+        df_interest['total_cross_coupling'] == total_cross_coupling_interest].drop('total_cross_coupling', 1)
+    # Choose which of the explored parameters will be aggregated or averaged
+    parameters_to_average = {'repetition_i'}
+    # Real
+    df_aggregate = df_interest.groupby('samples_n').agg(lambda x: list(x))
+    axs[0].plot(
+        samples_n_range,
+        [np.nanmean(df_aggregate['local_efficiency_real'][samples_n])
+            for samples_n in samples_n_range],
+        label='Real',
+        linestyle = 'None',
+        color='k',
+        marker='x',
+        fillstyle='none',
+        zorder=99,  # bring to foreground
+        )
+    for algorithm_i, algorithm in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same number of samples
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by samples_n
+        df_aggregate = df_algorithm.groupby('samples_n').agg(
+            lambda x: list(x))
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        # Inferred
+        axs[0].plot(
+            samples_n_range,
+            [np.nanmean(df_aggregate['local_efficiency_inferred'][samples_n])
+             for samples_n in samples_n_range],
+            label=algorithm_names[algorithm],
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        axs[0].scatter(
+            df_algorithm['samples_n'].values.astype(float).tolist(),
+            [np.nanmean(x) for x in df_algorithm['local_efficiency_inferred'].values],
+            alpha=0.3,
+            color=colors_default[algorithm_i + 1],
+            marker=markers_default[algorithm_i + 1],
+            )
+        # Set axes properties
+        axs[0].set_xlabel(r'$\text{T}$', horizontalalignment='right', x=1.0)
+        axs[0].set_ylabel(r'$\text{Local efficiency}$')
+        axs[0].yaxis.set_ticks_position('both')
+        axs[0].set_xscale('log')
+        axs[0].set_xlim(left=0.5*min(samples_n_range), right=2*max(samples_n_range))
+        # Add legend
+        axs[0].legend(loc='lower right')
+
+    return fig
+
+
+def scatter_out_degree_inferred_vs_out_degree_real_macaque_total_cross_coupling():
+    # Scatter out-degree inferred vs. real
+    # Subplots horizontal: algorithms
+    subplots_v = len(algorithms)
+    subplots_h = len(total_cross_coupling_range)
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'out_degree_inferred',
+        'out_degree_real',
+        ]]
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    for (axs_row, algorithm) in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same algorithm
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by total_cross_coupling and concatenate TE values lists
+        df_aggregate = df_algorithm.groupby('total_cross_coupling').agg(
+            lambda x: x.tolist())
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        for (axs_col, total_cross_coupling) in enumerate(total_cross_coupling_range):
+            # Set subplot title
+            axs[axs_row, axs_col].set_title('{1} (weight={0})'.format(
+                total_cross_coupling,
+                algorithm_names[algorithm]))
+            out_degree_inferred = np.concatenate(
+                df_aggregate.loc[total_cross_coupling].out_degree_inferred)
+            out_degree_real = np.concatenate(
+                df_aggregate.loc[total_cross_coupling].out_degree_real)
+            # Scatter
+            axs[axs_row, axs_col].scatter(
+                out_degree_real,
+                out_degree_inferred,
+                )
+            # Plot identity line
+            axs[axs_row, axs_col].plot(
+                [min(out_degree_real), max(out_degree_real)],
+                [min(out_degree_real), max(out_degree_real)],
+                'g--')
+            # Set axes properties
+            axs[axs_row, axs_col].set_xlabel(
+                r'$\text{Out-degree real}$')  # , horizontalalignment='right', x=1.0)
+            axs[axs_row, 0].set_ylabel(
+                r'$\text{Out-degree inferred}$')
+            axs[axs_row, axs_col].yaxis.set_ticks_position('both')
+    return fig
+
+
+def scatter_betweenness_centrality_inferred_vs_real_macaque_total_cross_coupling():
+    # Scatter out-degree inferred vs. real
+    # Subplots horizontal: algorithms
+    subplots_v = len(algorithms)
+    subplots_h = len(total_cross_coupling_range)
+    fig, axs = my_subplots(subplots_v, subplots_h, sharex=True, sharey=True)
+    # Select data of interest
+    df_interest = df[parameters_explored + [
+        'betweenness_centrality_inferred',
+        'betweenness_centrality_real',
+        ]]
+    df_interest = df_interest.loc[
+        df_interest['samples_n'] == T_interest].drop('samples_n', 1)
+    # Choose which of the explored parameters to collect data over
+    parameters_to_average = {'repetition_i'}
+    for (axs_row, algorithm) in enumerate(algorithms):
+        # Select dataframe entries(i.e runs) with the same algorithm
+        df_algorithm = df_interest.loc[
+            df_interest['algorithm'] == algorithm].drop('algorithm', 1)
+        # Group by total_cross_coupling and concatenate TE values lists
+        df_aggregate = df_algorithm.groupby('total_cross_coupling').agg(
+            lambda x: x.tolist())
+        # Ensure that only the desired parameters are aggregated or averaged
+        df_keys_remaining = df_aggregate.columns.get_level_values(0)
+        check_remaining_dimensions(df_keys_remaining, parameters_to_average)
+        for (axs_col, total_cross_coupling) in enumerate(total_cross_coupling_range):
+            # Set subplot title
+            axs[axs_row, axs_col].set_title('{1} (weight={0})'.format(
+                total_cross_coupling,
+                algorithm_names[algorithm]))
+            betweenness_centrality_inferred = np.concatenate(
+                df_aggregate.loc[total_cross_coupling].betweenness_centrality_inferred)
+            betweenness_centrality_real = np.concatenate(
+                df_aggregate.loc[total_cross_coupling].betweenness_centrality_real)
+            # Scatter
+            axs[axs_row, axs_col].scatter(
+                betweenness_centrality_real,
+                betweenness_centrality_inferred,
+                )
+            # Plot identity line
+            axs[axs_row, axs_col].plot(
+                [min(betweenness_centrality_real), max(betweenness_centrality_real)],
+                [min(betweenness_centrality_real), max(betweenness_centrality_real)],
+                'g--')
+            # Set axes properties
+            axs[axs_row, axs_col].set_xlabel(
+                r'$\text{Betweenness real}$')  # , horizontalalignment='right', x=1.0)
+            axs[axs_row, 0].set_ylabel(
+                r'$\text{Betweenness inferred}$')
+            axs[axs_row, axs_col].yaxis.set_ticks_position('both')
+    return fig
+
+
+
+# -------------------------------------------------------------------------
+# endregion
+# -------------------------------------------------------------------------
+
+
+
+
 
 
 # ------------------------------------------------------------------------
@@ -6630,15 +7776,15 @@ fig_list = []
 mpl.rcParams['text.usetex'] = True
 mpl.rcParams['text.latex.preamble'] = [r'\usepackage{amsmath}'] #for \text command
 # Use "matplotlib.rcdefaults()" to restore the default plot style"
-mpl.rcParams['axes.titlesize'] = 18
-mpl.rcParams['axes.labelsize'] = 12
+mpl.rcParams['axes.titlesize'] = 15
+mpl.rcParams['axes.labelsize'] = 15
 mpl.rcParams['axes.linewidth'] = 1
 mpl.rcParams['xtick.labelsize'] = 12
 mpl.rcParams['ytick.labelsize'] = 12
 mpl.rcParams['lines.linewidth'] = 1.5
-mpl.rcParams['lines.markersize'] = 4
+mpl.rcParams['lines.markersize'] = 5
 mpl.rcParams['errorbar.capsize'] = 3
-mpl.rcParams['legend.fontsize'] = 8
+mpl.rcParams['legend.fontsize'] = 10
 mpl.rcParams['legend.labelspacing'] = 0.5  #0.5 default
 mpl.rcParams['legend.handletextpad'] = 0.8  #0.8 default
 #### SAVING FIGURES
@@ -6688,17 +7834,25 @@ colors_tableau_colorblind_10 = [
     '#CFCFCF']
 # Other colorblind palette proposed in https://github.com/matplotlib/matplotlib/issues/9460
 colors_petroff = [
-    '#7B85D4',
-    '#f37738',
-    '#83c995',
-    '#d7369e',
+    '#7B85D4',  # similar to blue
+    '#d7369e',  # similar to magenta
+    '#83c995',  # similar to green
+    '#f37738',  # similar to orange
     '#c4c9d8',
     '#859795',
     '#e9d043',
     '#ad5b50']
 colors_default = colors_petroff
 # Markers
-markers_default = ['x', 'o', '^', 's', 'D', 'v', 'h', '*']
+markers_default = [
+    'x',
+    'o',
+    '^',
+    's',
+    'D',
+    'v',
+    'h',
+    '*']
 cycler_default = cycler(
     color=colors_petroff,
     marker=markers_default)
@@ -6709,12 +7863,12 @@ cycler_default = cycler(
 # region Network Neuroscience validation paper (Random Erdos-Renyi)
 # -------------------------------------------------------------------------
 
-# Select value of interest (for those plots where only one value is used)
-# alpha_interest = 0.001
-# N_interest = 100
+# # Select value of interest (for those plots where only one value is used)
+# # alpha_interest = 0.001
+# N_interest = 40
 # T_interest = 10000
 # first_not_explored = 'precision'
-# Ignore non-relevant explored parameters
+# # Ignore non-relevant explored parameters
 # ignore_par = {
 #     'jidt_threads_n',
 #     'n_perm_max_stat',
@@ -6723,28 +7877,42 @@ cycler_default = cycler(
 #     'n_perm_omnibus',
 # }
 # parameters_explored = get_parameters_explored(first_not_explored, ignore_par)
-# Get parameter ranges
+# # Get parameter ranges
+# #   df['nodes_n'] = 40
+# #   print(df.head())
 # nodes_n_range = np.unique(df['nodes_n']).astype(int)
 # samples_n_range = np.unique(df['samples_n']).astype(int)
 # alpha_c_range = np.unique(df['p_value']).astype(float)
-# new_fig('plot_performance_vs_N_scatter')
-# new_fig('plot_precision_vs_N_scatter')
-# new_fig('plot_precision_vs_N_scatter_inset')
-# new_fig('plot_recall_vs_N_scatter')
-# new_fig('plot_spectral_radius_vs_N_scatter')
-# new_fig('plot_FPR_target_vs_alpha_quantile_mean')
-# new_fig('plot_FPR_target_vs_alpha_quantile_N_interest')
-# new_fig('plot_precision_recall_vs_alpha')
-# new_fig('plot_precision_vs_recall_subplots_T_scatter')
-# new_fig('plot_precision_vs_recall_subplots_T_scatter_aggregate')
-# new_fig('plot_precision_vs_recall_subplots_N_scatter')
-# new_fig('plot_delay_error_mean_vs_T_relative')
-# new_fig('plot_delay_error_mean_vs_T_relative_alpha_interest')
-# new_fig('plot_omnibus_TE_empirical_histogram_alpha_interest')
-# new_fig('plot_omnibus_TE_empirical_histogram_alpha_interest_T_interest')
-# new_fig('plot_omnibus_TE_empirical_vs_theoretical_causal_vars_alpha_interest')
-# new_fig('plot_omnibus_TE_empirical_vs_theoretical_inferred_vars_alpha_interest')
-# new_fig('plot_relative_error_TE_empirical_vs_theoretical_causal_vars_alpha_interest')
+
+# algorithms = np.unique(df['algorithm'])
+# # Define dictionary of algorithm abbreviations
+# algorithm_names = {
+#     'bMI': 'Bivariate Mutual Information',
+#     'bMI_greedy': 'Bivariate Mutual Information',
+#     'bTE_greedy': 'Bivariate Transfer Entropy',
+#     'mTE_greedy': 'Multivariate Transfer Entropy',
+# }
+
+# # new_fig('plot_performance_vs_N_scatter')
+# # new_fig('plot_precision_vs_N_scatter')
+# # new_fig('plot_precision_vs_N_scatter_inset')
+# # new_fig('plot_recall_vs_N_scatter')
+# # new_fig('plot_spectral_radius_vs_N_scatter')
+# fig_list.append(plot_FPR_target_vs_alpha_quantile_mean())
+# # fig_list.append(plot_FPR_target_vs_alpha_quantile_N_interest())
+# # new_fig('plot_precision_recall_vs_alpha')
+# # new_fig('plot_precision_vs_recall_subplots_T_scatter')
+# # new_fig('plot_precision_vs_recall_subplots_T_scatter_aggregate')
+# # new_fig('plot_precision_vs_recall_subplots_N_scatter')
+# # new_fig('plot_delay_error_mean_vs_T_relative')
+# # new_fig('plot_delay_error_mean_vs_T_relative_alpha_interest')
+# # new_fig('plot_omnibus_TE_empirical_histogram_alpha_interest')
+# # new_fig('plot_omnibus_TE_empirical_histogram_alpha_interest_T_interest')
+# # new_fig('plot_omnibus_TE_empirical_vs_theoretical_causal_vars_alpha_interest')
+# # new_fig('plot_omnibus_TE_empirical_vs_theoretical_inferred_vars_alpha_interest')
+# # new_fig('plot_relative_error_TE_empirical_vs_theoretical_causal_vars_alpha_interest')
+# fig_list.append(plot_path_lenght_vs_alpha_subplot_algorithm())
+
 
 # -------------------------------------------------------------------------
 # endregion
@@ -6799,72 +7967,64 @@ cycler_default = cycler(
 # region Watts-Strogatz
 # -------------------------------------------------------------------------
 
-# # Select value of interest (for those plots where only one value is used)
-# alpha_interest = 0.001
-# N_interest = 100
-# T_interest = 10000
-# weight_interest = 'deterministic'
-# algorithm_interest = 'mTE_greedy'
-# first_not_explored = 'precision'
-# # Ignore non-relevant explored parameters
-# ignore_par = {
-#     'jidt_threads_n',
-#     'n_perm_max_stat',
-#     'n_perm_min_stat',
-#     'n_perm_max_seq',
-#     'n_perm_omnibus',
-#     'weight_distribution'
-#     }
-# parameters_explored = get_parameters_explored(first_not_explored, ignore_par)
-# # Get parameter ranges
+# Select value of interest (for those plots where only one value is used)
+#alpha_interest = 0.001
+N_interest = 100  # needed for SW coeff even if it's not an explored parameter
+T_interest = 10000
+#weight_interest = 'deterministic'
+algorithm_interest = 'mTE_greedy'
+first_not_explored = 'precision'
+# Ignore non-relevant explored parameters
+ignore_par = {
+    'jidt_threads_n',
+    'n_perm_max_stat',
+    'n_perm_min_stat',
+    'n_perm_max_seq',
+    'n_perm_omnibus',
+    'weight_distribution',
+    }
+parameters_explored = get_parameters_explored(first_not_explored, ignore_par)
+# Get parameter ranges
 # nodes_n_range = np.unique(df['nodes_n']).astype(int)
-# samples_n_range = np.unique(df['samples_n']).astype(int)
+samples_n_range = np.unique(df['samples_n']).astype(int)
 # alpha_c_range = np.unique(df['p_value']).astype(float)
-# WS_p_range = np.unique(df['WS_p']).astype(float)
-# algorithms = np.unique(df['algorithm'])
-# weight_distributions = np.unique(df['weight_distribution'])
-# # Define dictionary of algorithm abbreviations
-# algorithm_names = {
-#     'bMI': 'Bivariate Mutual Information',
-#     'bMI_greedy': 'Bivariate Mutual Information',
-#     'bTE_greedy': 'Bivariate Transfer Entropy',
-#     'mTE_greedy': 'Multivariate Transfer Entropy',
-# }
-# fig_list.append(plot_performance_vs_WS_p())
-# fig_list.append(plot_density_vs_WS_p())
-# fig_list.append(plot_out_degree_vs_WS_p())
-# fig_list.append(plot_path_lenght_vs_WS_p())
-# fig_list.append(plot_average_global_efficiency_vs_WS_p())
-# fig_list.append(plot_local_efficiency_vs_WS_p())
-# fig_list.append(plot_local_efficiency_correlation_vs_WS_p())
-# fig_list.append(plot_clustering_vs_WS_p())
-# # fig_list.append(scatter_clustering_inferred_vs_clustering_real())
-# fig_list.append(plot_clustering_correlation_vs_WS_p())
-# fig_list.append(plot_SW_index_vs_WS_p())
+WS_p_range = np.unique(df['WS_p']).astype(float)
+algorithms = np.unique(df['algorithm'])
+#weight_distributions = np.unique(df['weight_distribution'])
+# Define dictionary of algorithm abbreviations
+algorithm_names = {
+    'bMI': 'Bivariate MI',
+    'bMI_greedy': 'Bivariate MI',
+    'bTE_greedy': 'Bivariate TE',
+    'mTE_greedy': 'Multivariate TE',
+}
+fig_list.append(plot_performance_vs_WS_p())
+fig_list.append(plot_density_vs_WS_p())
+fig_list.append(plot_path_lenght_vs_WS_p())
+fig_list.append(plot_clustering_vs_WS_p())
+fig_list.append(plot_average_global_efficiency_vs_WS_p())
+fig_list.append(plot_local_efficiency_vs_WS_p())
+fig_list.append(plot_SW_coeff_vs_WS_p())  # default parameter WS_k=4
+fig_list.append(plot_SW_index_vs_WS_p())  # default parameter WS_k=4
+
 # fig_list.append(violin_TE_empirical_vs_WS_p())
 # fig_list.append(violin_TE_theoretical_vs_WS_p())
 # fig_list.append(imshow_TE_apparent_theoretical_causal_vars())
 # fig_list.append(imshow_TE_complete_theoretical_causal_vars())
 # fig_list.append(violin_AIS_theoretical_vs_WS_p())
-# # fig_list.append(plot_omnibus_TE_empirical_vs_theoretical_causal_vars())
-# # # fig_list.append(plot_omnibus_TE_empirical_vs_theoretical_inferred_vars_alpha_interest())
-# # fig_list.append(plot_relative_error_TE_empirical_vs_theoretical_causal_vars_vs_WS_p())
-# # fig_list.append(scatter_performance_vs_omnibus_TE())
-# # # fig_list.append(scatter_performance_vs_out_degree_real())
-# # # fig_list.append(scatter_omnibus_TE_vs_out_degree_real())
-# # fig_list.append(scatter_performance_vs_clustering_real())
-# # # fig_list.append(scatter_performance_vs_lattice_distance())
+# fig_list.append(plot_omnibus_TE_empirical_vs_theoretical_causal_vars())
+# # fig_list.append(plot_omnibus_TE_empirical_vs_theoretical_inferred_vars_alpha_interest())
+# fig_list.append(plot_relative_error_TE_empirical_vs_theoretical_causal_vars_vs_WS_p())
+# fig_list.append(scatter_performance_vs_omnibus_TE())
+# # fig_list.append(scatter_performance_vs_out_degree_real())
+# # fig_list.append(scatter_omnibus_TE_vs_out_degree_real())
+# fig_list.append(scatter_performance_vs_clustering_real())
+# # fig_list.append(scatter_performance_vs_lattice_distance())
 # fig_list.append(plot_performance_vs_WS_p_group_distance())
 # fig_list.append(plot_spectral_radius_vs_WS_p_alpha_interest())
 # fig_list.append(barchart_precision_per_motif())
 # fig_list.append(barchart_recall_per_motif())
 
-
-
-#parameters_explored = df.loc[[], :'TE_omnibus_theoretical_causal_vars'].keys().tolist()[:-1]
-# self_couplings = np.unique(df['self_coupling'])
-# cross_couplings = np.unique(df['total_cross_coupling'])
-# fig_list.append(violin_TE_apparent_and_conditional_pairs())
 
 # -------------------------------------------------------------------------
 # endregion
@@ -6875,10 +8035,10 @@ cycler_default = cycler(
 # -------------------------------------------------------------------------
 # region Barabasi-Albert
 # -------------------------------------------------------------------------
+
 # # Select value of interest (for those plots where only one value is used)
-# alpha_interest = 0.001
 # N_interest = 200
-# T_interest = 1000
+# T_interest = 10000
 # weight_interest = 'fixed'
 # algorithm_interest = 'mTE_greedy'
 # first_not_explored = 'precision'
@@ -6889,41 +8049,44 @@ cycler_default = cycler(
 #     'n_perm_min_stat',
 #     'n_perm_max_seq',
 #     'n_perm_omnibus',
-#     'weight_distribution'
 #     }
 # parameters_explored = get_parameters_explored(first_not_explored, ignore_par)
 # # Get parameter ranges
-# nodes_n_range = np.unique(df['nodes_n']).astype(int)
+# # nodes_n_range = np.unique(df['nodes_n']).astype(int)
 # samples_n_range = np.unique(df['samples_n']).astype(int)
-# alpha_c_range = np.unique(df['p_value']).astype(float)
+# # alpha_c_range = np.unique(df['p_value']).astype(float)
 # algorithms = np.unique(df['algorithm'])
-# weight_distributions = np.unique(df['weight_distribution'])
+# # weight_distributions = np.unique(df['weight_distribution'])
 # # Define dictionary of algorithm abbreviations
 # algorithm_names = {
-#     'bMI': 'Bivariate Mutual Information',
-#     'bMI_greedy': 'Bivariate Mutual Information',
-#     'bTE_greedy': 'Bivariate Transfer Entropy',
-#     'mTE_greedy': 'Multivariate Transfer Entropy',
+#     'bMI': 'Bivariate MI',
+#     'bMI_greedy': 'Bivariate MI',
+#     'bTE_greedy': 'Bivariate TE',
+#     'mTE_greedy': 'Multivariate TE',
 # }
-# 
-# fig_list.append(scatter_performance_vs_in_degree_real())
-# fig_list.append(scatter_performance_vs_out_degree_real())
-# fig_list.append(scatter_FP_per_target_vs_in_degree_real())
-# fig_list.append(scatter_FP_per_source_vs_in_degree_real())
-# #fig_list.append(plot_performance_vs_N_scatter())
-# #fig_list.append(scatter_performance_vs_omnibus_TE())
+
+# fig_list.append(boxplot_BA_performance())
+# fig_list.append(boxplot_BA_clustering())
+# fig_list.append(boxplot_BA_average_global_efficiency())
+# fig_list.append(boxplot_BA_local_efficiency())
+# # fig_list.append(scatter_performance_vs_in_degree_real())
+# # fig_list.append(scatter_performance_vs_out_degree_real())
+# # fig_list.append(scatter_FP_per_target_vs_in_degree_real())
+# # fig_list.append(scatter_FP_per_source_vs_in_degree_real())
+# fig_list.append(scatter_clustering_inferred_vs_real())
+# fig_list.append(scatter_clustering_vs_in_degree())
+# fig_list.append(scatter_betweenness_centrality_inferred_vs_real())
+# # #fig_list.append(scatter_eigenvector_centrality_inferred_vs_real())
+
 # fig_list.append(scatter_in_degree_inferred_vs_real())
-# fig_list.append(scatter_out_degree_inferred_vs_real())
-# fig_list.append(histogram_in_degree_inferred_vs_real())
-# fig_list.append(histogram_out_degree_inferred_vs_real())
+# # fig_list.append(scatter_out_degree_inferred_vs_real())
+# # fig_list.append(loglog_distributions_in_degree_inferred_vs_real())
+# # fig_list.append(loglog_distributions_out_degree_inferred_vs_real())
 # fig_list.append(loglog_distributions_in_degree_inferred_vs_real())
-# fig_list.append(loglog_distributions_out_degree_inferred_vs_real())
+
 # fig_list.append(scatter_in_degree_assortativity_inferred_vs_real())
-# fig_list.append(scatter_out_degree_assortativity_inferred_vs_real())
 # fig_list.append(plot_rich_club_in_degrees_inferred_vs_real())
-# fig_list.append(plot_rich_club_out_degrees_inferred_vs_real())
-# fig_list.append(histogram_reciprocity_inferred_vs_real())
-# fig_list.append(histogram_overall_reciprocity_inferred_vs_real())
+# # fig_list.append(histogram_reciprocity_inferred_vs_real())
 
 # -------------------------------------------------------------------------
 # endregion
@@ -6935,36 +8098,87 @@ cycler_default = cycler(
 # region Stochastic Block Model
 # -------------------------------------------------------------------------
 
-# Select value of interest (for those plots where only one value is used)
-alpha_interest = 0.001
-T_interest = 1000
-algorithm_interest = 'mTE_greedy'
-first_not_explored = 'precision'
-# Ignore non-relevant explored parameters
-ignore_par = {
-    'jidt_threads_n',
-    'n_perm_max_stat',
-    'n_perm_min_stat',
-    'n_perm_max_seq',
-    'n_perm_omnibus',
-    'weight_distribution'
-    }
-parameters_explored = get_parameters_explored(first_not_explored, ignore_par)
-# Get parameter ranges
-links_out_range = np.unique(df['links_out']).astype(int)
-samples_n_range = np.unique(df['samples_n']).astype(int)
-algorithms = np.unique(df['algorithm'])
-# Define dictionary of algorithm abbreviations
-algorithm_names = {
-    'bMI': 'Bivariate Mutual Information',
-    'bMI_greedy': 'Bivariate Mutual Information',
-    'bTE_greedy': 'Bivariate Transfer Entropy',
-    'mTE_greedy': 'Multivariate Transfer Entropy',
-}
-fig_list.append(violin_plot_SBM_precision_vs_links_out())
-fig_list.append(violin_plot_SBM_recall_vs_links_out())
-# fig_list.append(violin_plot_SBM_precision())
-# fig_list.append(violin_plot_SBM_recall())
+# # Select value of interest (for those plots where only one value is used)
+# T_interest = 10000
+# algorithm_interest = 'mTE_greedy'
+# first_not_explored = 'precision'
+# # Ignore non-relevant explored parameters
+# ignore_par = {
+#     'jidt_threads_n',
+#     'n_perm_max_stat',
+#     'n_perm_min_stat',
+#     'n_perm_max_seq',
+#     'n_perm_omnibus',
+#     'weight_distribution'
+#     }
+# parameters_explored = get_parameters_explored(first_not_explored, ignore_par)
+# # Get parameter ranges
+# links_out_range = np.unique(df['links_out']).astype(int)
+# samples_n_range = np.unique(df['samples_n']).astype(int)
+# algorithms = np.unique(df['algorithm'])
+# # Define dictionary of algorithm abbreviations
+# algorithm_names = {
+#     'bMI': 'Bivariate MI',
+#     'bMI_greedy': 'Bivariate MI',
+#     'bTE_greedy': 'Bivariate TE',
+#     'mTE_greedy': 'Multivariate TE',
+# }
+# fig_list.append(plot_SBM_precision_vs_links_out())
+# fig_list.append(plot_SBM_recall_vs_links_out())
+# # fig_list.append(plot_SBM_FP_vs_links_out())
+# # fig_list.append(plot_SBM_FP_rate_vs_links_out())
+# fig_list.append(plot_SBM_FP_and_FP_rate_vs_links_out(nodes_n=100))
+# fig_list.append(plot_SBM_partition_modularity_vs_links_out())
+
+
+# -------------------------------------------------------------------------
+# endregion
+# -------------------------------------------------------------------------
+
+
+
+# -------------------------------------------------------------------------
+# region Macaque
+# -------------------------------------------------------------------------
+
+# # Select value of interest (for those plots where only one value is used)
+# N_interest = 71  # needed for SW coeff even if it's not an explored parameter
+# T_interest = 10000
+# total_cross_coupling_interest = 0.7
+# first_not_explored = 'precision'
+# # Ignore non-relevant explored parameters
+# ignore_par = {
+#     'jidt_threads_n',
+#     'n_perm_max_stat',
+#     'n_perm_min_stat',
+#     'n_perm_max_seq',
+#     'n_perm_omnibus',
+#     'weight_distribution'
+#     }
+# parameters_explored = get_parameters_explored(first_not_explored, ignore_par)
+# # Get parameter ranges
+# samples_n_range = np.unique(df['samples_n']).astype(int)
+# algorithms = np.unique(df['algorithm'])
+# # fixed_coupling_range = np.unique(df['fixed_coupling'])
+# print(df.head())
+# total_cross_coupling_range = np.unique(df['total_cross_coupling'])
+# # Define dictionary of algorithm abbreviations
+# algorithm_names = {
+#     'bMI': 'Bivariate MI',
+#     'bMI_greedy': 'Bivariate MI',
+#     'bTE_greedy': 'Bivariate TE',
+#     'mTE_greedy': 'Multivariate TE',
+# }
+# fig_list.append(plot_performance_vs_samples_n_macaque())
+# fig_list.append(plot_performance_vs_total_cross_coupling())
+# fig_list.append(plot_average_global_efficiency_vs_samples_n())
+# fig_list.append(plot_local_efficiency_vs_samples_n())
+# fig_list.append(plot_average_global_efficiency_vs_total_cross_coupling())
+# fig_list.append(plot_local_efficiency_vs_total_cross_coupling())
+# fig_list.append(scatter_betweenness_centrality_inferred_vs_real_macaque_total_cross_coupling())
+# fig_list.append(scatter_out_degree_inferred_vs_out_degree_real_macaque_total_cross_coupling())
+
+
 
 # -------------------------------------------------------------------------
 # endregion
@@ -6977,8 +8191,6 @@ fig_list.append(violin_plot_SBM_recall_vs_links_out())
 # ----------------------------------------------------------------------------
 # Test area
 # ----------------------------------------------------------------------------
-
-
 
 
 
