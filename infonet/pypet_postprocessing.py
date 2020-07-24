@@ -81,6 +81,8 @@ def performance_measures():
             FP_copy[i:i+group_size, i:i+group_size] = np.nan
         FP_between = np.nansum(FP_copy[~np.isnan(FP_copy)].flatten())
         assert FP_within + FP_between == np.nansum(FP_matrix)
+        df.loc[run_name, 'FP_within_groups'] = FP_within
+        df.loc[run_name, 'FP_between_groups'] = FP_between
         # FN
         FN_within = np.nansum(np.array(
             [FN_matrix[i:i+group_size, i:i+group_size]
@@ -91,6 +93,8 @@ def performance_measures():
         FN_between = np.nansum(FN_copy[~np.isnan(FN_copy)].flatten())
         assert FN_within + FN_between == np.nansum(FN_matrix)
     # Compute classifier precision
+    print('TP={0}'.format(TP))
+    print('FP={0}'.format(FP))
     if TP + FP > 0:
         df.loc[run_name, 'precision'] = TP / (TP + FP)
     else:
@@ -179,6 +183,18 @@ def performance_measures():
     df.loc[run_name, 'specificity_per_source'] = specificity_per_source
     df.loc[run_name, 'FP_rate_per_source'] = (
         FP_rate_per_source)
+    # Compute specificity and FPR on links within/between groups
+    if 'planted_partition' in traj.par.topology.initial.model:
+        if TN_within + FP_within > 0:
+            df.loc[run_name, 'specificity_within_groups'] = (
+                TN_within / (TN_within + FP_within))
+            df.loc[run_name, 'FP_rate_within_groups'] = (
+                FP_within / (TN_within + FP_within))
+        if TN_between + FP_between > 0:
+            df.loc[run_name, 'specificity_between_groups'] = (
+                TN_between / (TN_between + FP_between))
+            df.loc[run_name, 'FP_rate_between_groups'] = (
+                FP_between / (TN_between + FP_between))
 
     # Compute false pos rate at taget level (tFPR)
     df.loc[run_name, 'incorrect_target_rate'] = (FP_target > 0).mean()
@@ -963,17 +979,8 @@ def network_properties():
     local_efficiency_real = local_efficiency(G_real)
     local_efficiency_inferred = local_efficiency(G_inferred)
     # Rich-club coefficient (normalised)
-    #rich_club_in_degrees_real = nx.rich_club_coefficient(G_real.to_undirected(), normalized=True, Q=100)
     rich_club_in_degrees_real = rich_club_in_degrees(G_real)
-        #G_real.to_undirected(),
-        #normalized=False,
-        #Q=100,
-        #seed=None)
     rich_club_in_degrees_inferred = rich_club_in_degrees(G_inferred)
-        #G_inferred.to_undirected(),
-        #normalized=False,
-        #Q=100,
-        #seed=None)
     rich_club_out_degrees_real = rich_club_out_degrees(G_real)
     rich_club_out_degrees_inferred = rich_club_out_degrees(G_inferred)
     # Degree assortativity coefficient
@@ -981,17 +988,38 @@ def network_properties():
         G_real, x='in', y='in')
     in_degree_assortativity_inferred = nx.degree_assortativity_coefficient(
         G_inferred, x='in', y='in')
-    out_degree_assortativity_real = nx.degree_assortativity_coefficient(
-        G_real, x='out', y='out')
-    out_degree_assortativity_inferred = nx.degree_assortativity_coefficient(
-        G_inferred, x='out', y='out')
     # Reciprocity
+    reciprocity_real = np.nan
+    overall_reciprocity_real = np.nan
+    reciprocity_inferred = np.nan
+    overall_reciprocity_inferred = np.nan
     if not nx.is_empty(G_real):
         reciprocity_real = nx.reciprocity(G_real)
         overall_reciprocity_real = nx.overall_reciprocity(G_real)
     if not nx.is_empty(G_inferred):
         reciprocity_inferred = nx.reciprocity(G_inferred)
         overall_reciprocity_inferred = nx.overall_reciprocity(G_inferred)
+    # Centrality
+    betweenness_centrality_real = nx.betweenness_centrality(G_real)
+    betweenness_centrality_inferred = nx.betweenness_centrality(G_inferred)
+    # eigenvector_centrality_real = nx.eigenvector_centrality(G_real)
+    # eigenvector_centrality_inferred = nx.eigenvector_centrality(G_inferred)
+    # Block partition performance and modularity
+    if 'planted_partition' in traj.par.topology.initial.model:
+        nodes_n = traj.par.topology.nodes_n
+        partitions_n = traj.par.topology.partitions_n
+        group_size = int(nodes_n / partitions_n)
+        block_partition = [
+            tuple(range(j, j + group_size))
+            for j in range(0, nodes_n, group_size)]
+        block_partition_performance_real = nx.community.performance(
+            G_real, block_partition)
+        block_partition_performance_inferred = nx.community.performance(
+            G_inferred, block_partition)
+        block_partition_modularity_real = nx.community.modularity(
+            G_real, block_partition)
+        block_partition_modularity_inferred = nx.community.modularity(
+            G_inferred, block_partition)
 
     # https://networkx.github.io/documentation/stable/reference/algorithms/generated/networkx.algorithms.communicability_alg.communicability.html#networkx.algorithms.communicability_alg.communicability
     df.loc[run_name, 'in_degree_real'] = np.array(in_degree_real)[:, 1]
@@ -1025,15 +1053,28 @@ def network_properties():
         in_degree_assortativity_real)
     df.loc[run_name, 'in_degree_assortativity_inferred'] = (
         in_degree_assortativity_inferred)
-    df.loc[run_name, 'out_degree_assortativity_real'] = (
-        out_degree_assortativity_real)
-    df.loc[run_name, 'out_degree_assortativity_inferred'] = (
-        out_degree_assortativity_inferred)
     df.loc[run_name, 'reciprocity_real'] = reciprocity_real
     df.loc[run_name, 'reciprocity_inferred'] = reciprocity_inferred
     df.loc[run_name, 'overall_reciprocity_real'] = overall_reciprocity_real
     df.loc[run_name, 'overall_reciprocity_inferred'] = (
         overall_reciprocity_inferred)
+    df.loc[run_name, 'betweenness_centrality_real'] = np.array(list(
+        betweenness_centrality_real.values()))
+    df.loc[run_name, 'betweenness_centrality_inferred'] = np.array(list(
+        betweenness_centrality_inferred.values()))
+    # df.loc[run_name, 'eigenvector_centrality_real'] = np.array(list(
+    #     eigenvector_centrality_real.values()))
+    # df.loc[run_name, 'eigenvector_centrality_inferred'] = np.array(list(
+    #     eigenvector_centrality_inferred.values()))
+    if 'planted_partition' in traj.par.topology.initial.model:
+        df.loc[run_name, 'block_partition_performance_real'] = (
+            block_partition_performance_real)
+        df.loc[run_name, 'block_partition_performance_inferred'] = (
+            block_partition_performance_inferred)
+        df.loc[run_name, 'block_partition_modularity_real'] = (
+            block_partition_modularity_real)
+        df.loc[run_name, 'block_partition_modularity_inferred'] = (
+            block_partition_modularity_inferred)
 
 
 def attractor_stuck():
@@ -1110,18 +1151,20 @@ df = pd.DataFrame(
         'FP_rate_per_source',
         'precision_within_groups',
         'recall_within_groups',
-        #'specificity_within_groups',
-        #'FP_rate_within_groups',
+        'specificity_within_groups',
+        'FP_rate_within_groups',
+        'FP_within_groups',
         'precision_between_groups',
         'recall_between_groups',
-        #'specificity_between_groups',
-        #'FP_rate_between_groups',
-        'precision_per_distance',
-        'recall_per_distance',
-        'specificity_per_distance',
-        'FP_rate_per_distance',
-        'precision_per_motif',
-        'recall_per_motif',
+        'specificity_between_groups',
+        'FP_rate_between_groups',
+        'FP_between_groups',
+        #'precision_per_distance',
+        #'recall_per_distance',
+        #'specificity_per_distance',
+        #'FP_rate_per_distance',
+        #'precision_per_motif',
+        #'recall_per_motif',
         'incorrect_target_rate',
         'density_real',
         'density_inferred',
@@ -1163,6 +1206,14 @@ df = pd.DataFrame(
         'reciprocity_inferred',
         'overall_reciprocity_real',
         'overall_reciprocity_inferred',
+        'betweenness_centrality_real',
+        'betweenness_centrality_inferred',
+        'eigenvector_centrality_real',
+        'eigenvector_centrality_inferred',
+        'block_partition_performance_real',
+        'block_partition_performance_inferred',
+        'block_partition_modularity_real',
+        'block_partition_modularity_inferred',
         'time_elapsed_monotonic',
         'time_elapsed_perf_counter',
         'time_elapsed_process_time'
@@ -1170,16 +1221,28 @@ df = pd.DataFrame(
     dtype=object)
 # Add other useful columns to the DataFrame
 if 'algorithm' not in parameters_explored:
-    df['algorithm'] = np.NaN
+    df['algorithm'] = np.nan
+# if 'nodes_n' not in parameters_explored:
+#     print('nodes_n')
+#     df['nodes_n'] = 0
+# if 'samples_n' not in parameters_explored:
+#     df['samples_n'] = 0
+# if 'p_value' not in parameters_explored:
+#     df['p_value'] = 0
 if 'weight_distribution' not in parameters_explored:
-    df['weight_distribution'] = np.NaN
+    print('weight_distribution')
+    df['weight_distribution'] = np.nan
+
+
+
+
 
 # Count number of runs
 runs_n = len(traj.f_get_run_names())
 print('\nNumber of runs = {0}\n'.format(runs_n))
 # Loop over runs
 for run_name in traj.f_get_run_names():
-    print('post-processing of {0} in progress...'.format(run_name))
+    print('\nPost-processing of {0} in progress...'.format(run_name))
 
     # Make trajectory behave like a particular single run:
     # all explored parameter’s values will be set to the corresponding
@@ -1194,20 +1257,20 @@ for run_name in traj.f_get_run_names():
         if debug_mode:
             print('{0} = {1}'.format(par, traj.parameters[par]))
     # Fill in additional useful parameter values
+    # if 'nodes_n' not in parameters_explored:
+    #     df.loc[run_name, 'nodes_n'] = nodes_n
+    # if 'samples_n' not in parameters_explored:
+    #     df.loc[run_name, 'samples_n'] = traj.parameters[
+    #         'node_dynamics.samples_n']
+    # if 'p_value' not in parameters_explored:
+    #     df.loc[run_name, 'p_value'] = traj.parameters[
+    #         'network_inference.p_value']
     if 'algorithm' not in parameters_explored:
-        current_algorithm = traj.parameters['network_inference.algorithm']
-        df.loc[run_name, 'algorithm'] = current_algorithm
-        if debug_mode:
-            print('algorithm added to DataFrame: {0}'.format(
-                current_algorithm))
+        df.loc[run_name, 'algorithm'] = traj.parameters[
+            'network_inference.algorithm']
     if 'weight_distribution' not in parameters_explored:
-        current_weight_distribution = traj.parameters[
+        df.loc[run_name, 'weight_distribution'] = traj.parameters[
             'node_coupling.initial.weight_distribution']
-        df.loc[run_name, 'weight_distribution'] = (
-            current_weight_distribution)
-        if debug_mode:
-            print('weight_distribution added to DataFrame: {0}'.format(
-                current_weight_distribution))
 
     # Read elapsed time
     # df.loc[run_name, 'time_elapsed_monotonic'] = (
@@ -1355,7 +1418,7 @@ for run_name in traj.f_get_run_names():
     # attractor_stuck()
 
     # Compute network properties
-    # network_properties()
+    network_properties()
 
 # Reset trajectory to the default settings, to release its belief to
 # be the last run:
