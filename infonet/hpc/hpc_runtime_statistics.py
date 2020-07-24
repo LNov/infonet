@@ -6,8 +6,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 # Choose base directory containing trajectory directories
-#base_dir = '/project/RDS-FEI-InfoDynFuncStruct-RW/Leo/inference/trajectories/'
-base_dir = 'C:\\DATA\\Google Drive\\Materiale progetti in corso\\USyd\\Information network inference\\trajectories\\'
+base_dir = '/project/RDS-FEI-InfoDynFuncStruct-RW/Leo/inference/trajectories/'
+#base_dir = 'C:\\DATA\\Google Drive\\Materiale progetti in corso\\USyd\\Information network inference\\trajectories\\'
 
 # Choose trajectory folders
 traj_dir_names = [

@@ -1,4 +1,4 @@
-from infonet import network_dynamics
+import network_dynamics
 import sys
 import os
 import time
@@ -91,6 +91,9 @@ def main():
     # Create settings dictionary
     print('network_inference.p_value = {0}\n'.format(
         traj.par.network_inference.p_value))
+    algorithm = traj.par.network_inference.algorithm
+    print('network_inference.algorithm = {0}\n'.format(
+        algorithm))
     settings = {
         'min_lag_sources': traj.par.network_inference.min_lag_sources,
         'max_lag_sources': traj.par.network_inference.max_lag_sources,
@@ -110,7 +113,8 @@ def main():
         'alpha_min_stat': traj.par.network_inference.p_value,
         'alpha_omnibus': traj.par.network_inference.p_value,
         'alpha_max_seq': traj.par.network_inference.p_value,
-        'alpha_fdr': traj.par.network_inference.p_value
+        'alpha_fdr': traj.par.network_inference.p_value,
+        'network_inference_algorithm': algorithm,
     }
     # Save objects to disk
     np.save(os.path.join(traj_dir, '.'.join([traj.v_crun, 'topology.initial.adjacency_matrix', 'npy'])), adjacency_matrix)
@@ -122,7 +126,7 @@ def main():
     # Path to PBS script
     job_script_path = os.path.join(traj_dir, 'run_python_script.pbs')
     # Run job array
-    job_walltime_hours = 6#1 + int(np.ceil((nodes_n + 20) / 30))
+    job_walltime_hours = 5#1 + int(np.ceil((nodes_n + 20) / 30))
     job_walltime_minutes = 0
     job_settings = {
         'N': 'run{0}'.format(run_i),

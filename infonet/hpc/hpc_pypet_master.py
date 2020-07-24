@@ -1,4 +1,4 @@
-from infonet import pypet_utils
+import pypet_utils
 import sys
 import os
 from datetime import datetime
@@ -14,9 +14,17 @@ def load_obj(path):
         return pickle.load(f)
 
 
+# Use pickle module to save dictionaries
+def save_obj(obj, file_dir, file_name):
+    with open(os.path.join(file_dir, file_name), 'wb') as f:
+        pickle.dump(obj, f, pickle.HIGHEST_PROTOCOL)
+
+
 def run_job_array(job_script_path, job_settings, job_args={}):
-    settings = ' '.join(['-{0} {1}'.format(key, job_settings[key]) for key in job_settings.keys()])
-    args = '-v ' + ','.join(['{0}="{1}"'.format(key, job_args[key]) for key in job_args.keys()])
+    settings = ' '.join(
+        ['-{0} {1}'.format(key, job_settings[key]) for key in job_settings.keys()])
+    args = '-v ' + ','.join(
+        ['{0}="{1}"'.format(key, job_args[key]) for key in job_args.keys()])
     # Submit PBS job
     call(
         ('qsub {1} {2} {0}').format(
@@ -55,11 +63,12 @@ def main():
             # Convert to full path
             traj_dir = os.path.abspath(dir_provided)
         else:
-            print('WARNING: Output path not found, current directory will be used instead')
+            print('WARNING: Output path not found, saving to current directory')
     else:
-        print('WARNING: Output path not provided, current directory will be used instead')
+        print('WARNING: Output path not provided, saving to current directory')
     # Add time stamp (the final '' is to make sure there is a trailing slash)
-    traj_dir = os.path.join(traj_dir, datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss"), '')
+    traj_dir = os.path.join(
+        traj_dir, datetime.now().strftime("%Y_%m_%d_%Hh%Mm%Ss"), '')
     # Create directory with time stamp
     os.makedirs(traj_dir)
     # Change current directory to the one containing the trajectory files
@@ -72,9 +81,16 @@ def main():
     traj = Trajectory(filename=traj_fullpath)
 
     # -------------------------------------------------------------------
-    # Add config parameters (those that DO NOT influence the final result of the experiment)
-    traj.f_add_config('debug', False, comment='Activate debug mode')
-#    #traj.f_add_config('max_mem_frac', 0.7, comment='Fraction of global GPU memory to use')
+    # Add config parameters (those that DO NOT influence the final result
+    # of the experiment)
+    if 'config' in settings:
+        for key, val in settings['config'].items():
+            traj.f_add_config(key, val)
+        del settings['config']
+    else:
+        # set default config parameters
+        traj.f_add_config('parallel_target_analysis', False)
+        traj.f_add_config('debug', False)
 
     # Set up trajectory parameters
     param_to_explore = {}
@@ -97,11 +113,14 @@ def main():
     print(explore_dict)
     traj.f_explore(explore_dict)
 
-    # Store trajectory parameters to disk
+    # Store trajectory parameters to the output directory
     pypet_utils.print_traj_leaves(
         traj,
         'parameters',
-        file=os.path.join(traj_dir, 'traj_parameters.txt'))
+        os.path.join(traj_dir, 'traj_parameters.txt'))
+    # And copy settings file to output directory too
+    save_obj(settings, traj_dir, 'pypet_settings.pkl')
+    print('\nSettings dictionary saved to {0}'.format(traj_dir))
 
     # Store trajectory
     traj.f_store()
@@ -110,7 +129,7 @@ def main():
     bash_lines = '\n'.join([
         '#! /bin/bash',
         '#PBS -P InfoDynFuncStruct',
-        '#PBS -l select=1:ncpus=1:mem=1GB',
+        '#PBS -l select=1:ncpus=1:mem=2GB',
         #'#PBS -l select=1:ncpus=1:ngpus=1:mem=1GB',
         '#PBS -M lnov6504@uni.sydney.edu.au',
         '#PBS -m abe',
@@ -134,12 +153,14 @@ def main():
     #after_job_array_ends = 1573895
     job_settings = {
         'N': 'run_traj',
-        'l': 'walltime={0}:{1}:00'.format(job_walltime_hours, job_walltime_minutes),
+        'l': 'walltime={0}:{1}:00'.format(
+            job_walltime_hours, job_walltime_minutes),
         #'W': 'depend=afteranyarray:{0}[]'.format(after_job_array_ends),
         'q': 'defaultQ'
     }
     if len(traj.f_get_run_names()) > 1:
-        job_settings['J'] = '{0}-{1}'.format(0, len(traj.f_get_run_names()) - 1)
+        job_settings['J'] = '{0}-{1}'.format(
+            0, len(traj.f_get_run_names()) - 1)
 
     job_args = {
         'python_script_path': '/project/RDS-FEI-InfoDynFuncStruct-RW/Leo/inference/hpc_pypet_single_run.py',
@@ -151,7 +172,7 @@ def main():
 
 
 if __name__ == '__main__':
-    # This will execute the main function in case the script is called from the one true
+    # This will execute the main function if the script is called from the
     # main process and not from a child processes spawned by your environment.
     # Necessary for multiprocessing under Windows.
     main()
