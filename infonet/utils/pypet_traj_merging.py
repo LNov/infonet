@@ -2,15 +2,15 @@ import os
 import shutil
 from datetime import datetime
 from pypet import Trajectory
-from mylib_pypet import print_leaves
+from infonet import pypet_utils
 
 # Choose base directory containing trajectory directories
 #base_dir = '/project/RDS-FEI-InfoDynFuncStruct-RW/Leo/inference/trajectories/'
 # base_dir = '/home/leo/Projects/inference/trajectories/'
-base_dir = 'C:\\DATA\\Google Drive\\Materiale progetti in corso\\USyd\\Information network inference\\trajectories\\'
+base_dir = 'C:\\DATA\\Materiale progetti in corso\\USyd\\Information network inference\\trajectories\\'
 traj_dir_names = [
-    'GC_on_AR_empty_new_10000samples',
-    'GC_on_AR_empty_new_10000samples_100_300rep',
+    'macaque71_1000_and_10000samples_self02_total_cross_coupling_bivariate_corrected_rep01234',
+    'macaque71_1000_and_10000samples_self02_total_cross_coupling_bivariate_corrected_rep56789',
 ]
 traj_filename = 'traj.hdf5'
 
@@ -107,5 +107,5 @@ for traj_to_merge in trajectories:
 print('Finished merging')
 
 print('\nFinal trajectory parameters:')
-print_leaves(traj_final, 'parameters')
+pypet_utils.print_traj_leaves(traj_final, 'parameters')
 print('----------------------------------------------------------\n')

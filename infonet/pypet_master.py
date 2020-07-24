@@ -134,8 +134,8 @@ def information_network_inference(traj):
     # traj.f_add_result('$.timing', timing=timing_df, comment='')
 
     # Suggest Java garbage collector to run
-    jSystem = jpype.JPackage("java.lang").System
-    jSystem.gc()
+    # jSystem = jpype.JPackage("java.lang").System
+    # jSystem.gc()
 
     # return the analysis result
     # return network_inference_result
